@@ -1,5 +1,7 @@
 package com.bookeldookel;
 
+import java.awt.image.BufferedImage;
+
 public class Main {
     public static void main(String[] args) {
         Menu menu = new Menu();
@@ -10,5 +12,9 @@ public class Main {
         int[] layout = LayoutCalculator.calculate(menu);
         System.out.println("Anzahl Spalten: " + layout[0]);
         System.out.println("Anzahl Zeilen: " + layout[1]);
+
+        BufferedImage image = PNG_Erzeuger.erzeugeBild(menu);
+        
+        PNG_speichern.speichern(image, menu.ausgabedateiname);
     }
 }
