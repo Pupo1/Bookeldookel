@@ -43,6 +43,8 @@ public class PNG_speichern {
                 setDPI(metadata);
 
                 writer.write(metadata, new IIOImage(binaryImage, null, metadata), param);
+            } catch (Exception e) {
+                System.err.println("Fehler beim Schreiben der Metadaten: " + e.getMessage());
             }
             
             System.out.println("Bild erfolgreich gespeichert unter: " + outputFile.getAbsolutePath());
@@ -54,25 +56,29 @@ public class PNG_speichern {
     }
 
     private static void setDPI(IIOMetadata metadata) throws IOException {
-        // 600 DPI in Millimeter pro Pixel umrechnen
-        // 1 Inch = 25.4 mm
-        // Pixelgröße in mm = 25.4 / DPI
-        double dotsPerMillimeter = 600.0 / 25.4;
-        double pixelSizeMM = 1.0 / dotsPerMillimeter;
+        try {
+            // 600 DPI in Millimeter pro Pixel umrechnen
+            // 1 Inch = 25.4 mm
+            // Pixelgröße in mm = 25.4 / DPI
+            double dotsPerMillimeter = 600.0 / 25.4;
+            double pixelSizeMM = 1.0 / dotsPerMillimeter;
 
-        String metadataFormat = "javax_imageio_1.0";
-        IIOMetadataNode root = new IIOMetadataNode(metadataFormat);
-        
-        IIOMetadataNode dimension = new IIOMetadataNode("Dimension");
-        IIOMetadataNode horizontal = new IIOMetadataNode("HorizontalPixelSize");
-        horizontal.setAttribute("value", Double.toString(pixelSizeMM));
-        dimension.appendChild(horizontal);
+            String metadataFormat = "javax_imageio_1.0";
+            IIOMetadataNode root = new IIOMetadataNode(metadataFormat);
+            
+            IIOMetadataNode dimension = new IIOMetadataNode("Dimension");
+            IIOMetadataNode horizontal = new IIOMetadataNode("HorizontalPixelSize");
+            horizontal.setAttribute("value", Double.toString(pixelSizeMM));
+            dimension.appendChild(horizontal);
 
-        IIOMetadataNode vertical = new IIOMetadataNode("VerticalPixelSize");
-        vertical.setAttribute("value", Double.toString(pixelSizeMM));
-        dimension.appendChild(vertical);
+            IIOMetadataNode vertical = new IIOMetadataNode("VerticalPixelSize");
+            vertical.setAttribute("value", Double.toString(pixelSizeMM));
+            dimension.appendChild(vertical);
 
-        root.appendChild(dimension);
-        metadata.mergeTree(metadataFormat, root);
+            root.appendChild(dimension);
+            metadata.mergeTree(metadataFormat, root);
+        } catch (Exception e) {
+             System.err.println("Fehler beim Setzen der DPI: " + e.getMessage());
+        }
     }
 }
