@@ -15,6 +15,8 @@ public class Main {
 
         BufferedImage image = PNG_Erzeuger.erzeugeBild(menu);
         
+        KastenTest.test(image, menu);
+
         PNG_speichern.speichern(image, menu.ausgabedateiname);
     }
 }
