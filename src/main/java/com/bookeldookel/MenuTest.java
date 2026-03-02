@@ -20,5 +20,6 @@ public class MenuTest {
         System.out.println("Punktgröße: " + menu.ds);
         System.out.println("Verschiebung: " + menu.de);
         System.out.println("Schriftgröße: " + menu.font);
+        System.out.println("Startcode: " + menu.startcode);
     }
 }

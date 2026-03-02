@@ -7,7 +7,8 @@ public class Main {
         
         MenuTest.printValues(menu);
 
-        String[] codes = FileReader.readCodes(menu.eingabedateiname);
-        System.out.println("Anzahl gelesener Zeilen: " + codes.length);
+        int[] layout = LayoutCalculator.calculate(menu);
+        System.out.println("Anzahl Spalten: " + layout[0]);
+        System.out.println("Anzahl Zeilen: " + layout[1]);
     }
 }
