@@ -43,8 +43,6 @@ public class PNG_speichern {
                 setDPI(metadata);
 
                 writer.write(metadata, new IIOImage(binaryImage, null, metadata), param);
-            } catch (Exception e) {
-                System.err.println("Fehler beim Schreiben der Metadaten: " + e.getMessage());
             }
             
             System.out.println("Bild erfolgreich gespeichert unter: " + outputFile.getAbsolutePath());
@@ -52,10 +50,12 @@ public class PNG_speichern {
 
         } catch (IOException e) {
             System.err.println("Fehler beim Speichern des Bildes: " + e.getMessage());
+        } catch (Exception e) {
+             System.err.println("Allgemeiner Fehler: " + e.getMessage());
         }
     }
 
-    private static void setDPI(IIOMetadata metadata) throws IOException {
+    private static void setDPI(IIOMetadata metadata) {
         try {
             // 600 DPI in Millimeter pro Pixel umrechnen
             // 1 Inch = 25.4 mm

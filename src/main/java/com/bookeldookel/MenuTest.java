@@ -21,5 +21,6 @@ public class MenuTest {
         System.out.println("Verschiebung: " + menu.de);
         System.out.println("Schriftgröße: " + menu.font);
         System.out.println("Startcode: " + menu.startcode);
+        System.out.println("Offset: " + menu.offset);
     }
 }

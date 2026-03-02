@@ -21,6 +21,7 @@ public class Menu {
     public int de;
     public int font;
     public int startcode;
+    public int offset;
 
     public void start() {
         Scanner scanner = new Scanner(System.in);
@@ -43,6 +44,7 @@ public class Menu {
         de = getInt(scanner, "Verschiebung", 3);
         font = getInt(scanner, "Schriftgröße", 10);
         startcode = getInt(scanner, "Startcode", 1);
+        offset = getInt(scanner, "Offset", 0);
     }
 
     private int getInt(Scanner scanner, String prompt, int defaultValue) {
