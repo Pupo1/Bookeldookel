@@ -32,8 +32,8 @@ public class Menu {
         randoben = getInt(scanner, "Rand oben in Pixeln", 10);
         randrechts = getInt(scanner, "Mindestrand rechts in Pixeln", 10);
         randunten = getInt(scanner, "Mindestrand unten in Pixeln", 10);
-        kastenbreite = getInt(scanner, "Kastenbreite in Pixeln", 100);
-        kastenhoehe = getInt(scanner, "Kastenhöhe in Pixeln", 100);
+        kastenbreite = getInt(scanner, "Kastenbreite in Pixeln", 402);
+        kastenhoehe = getInt(scanner, "Kastenhöhe in Pixeln", 236);
         horizAbstand = getInt(scanner, "Horizontaler Abstand zwischen den Kästen", 10);
         vertAbstand = getInt(scanner, "Vertikaler Abstand zwischen den Kästen", 10);
         ausgabedateiname = getString(scanner, "Ausgabedateiname", "out.png");
