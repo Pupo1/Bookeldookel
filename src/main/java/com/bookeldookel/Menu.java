@@ -39,11 +39,11 @@ public class Menu {
         ausgabedateiname = getString(scanner, "Ausgabedateiname", "out.png");
         linienbreite = getInt(scanner, "Rahmenbreite", 1);
         eingabedateiname = getString(scanner, "Eingabedatei", "codes.txt");
-        ps = getInt(scanner, "Rastergröße", 7);
+        ps = getInt(scanner, "Rastergröße",9);
         ds = getInt(scanner, "Punktgröße", 3);
-        de = getInt(scanner, "Verschiebung", 3);
+        de = getInt(scanner, "Verschiebung", 1);
         font = getInt(scanner, "Schriftgröße", 10);
-        startcode = getInt(scanner, "Startcode", 1);
+        startcode = getInt(scanner, "Startcode", 6729);
         offset = getInt(scanner, "Offset", 0);
     }
 
