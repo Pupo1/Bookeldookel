@@ -17,10 +17,22 @@ public class Punktkacheln {
 
         // --- Daten-Kacheln ---
         int[] w = new int[8];
+        StringBuilder binaryString = new StringBuilder();
+        
+        // 1. Startcode in 8 Zweiergruppen (W0 bis W7) zerlegen
+        // Little Endian: W0 sind die Bits 1-0, W7 sind die Bits 15-14.
         for (int i = 0; i < 8; i++) {
-            int shift = (7 - i) * 2;
+            int shift = i * 2;
             w[i] = (startcode >> shift) & 0x03;
+            
+            // Binärdarstellung für die Konsole (2 Stellen pro Gruppe)
+            String bin = Integer.toBinaryString(w[i]);
+            if (bin.length() < 2) {
+                binaryString.append("0");
+            }
+            binaryString.append(bin);
         }
+        System.out.println("Errechnete Binärzahl (Little Endian): " + binaryString.toString());
 
         int ckBit1 = ((w[1] ^ w[3] ^ w[4] ^ w[5]) & 0x01) << 1;
         int ckBit0 = (w[0] ^ w[2] ^ w[6] ^ w[7]) & 0x01;
