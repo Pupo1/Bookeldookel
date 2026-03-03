@@ -5,7 +5,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
 public class KastenErzeuger {
-    public static BufferedImage erzeugeKasten(int breite, int hoehe, int linienbreite) {
+    public static BufferedImage erzeugeKasten(int breite, int hoehe, int linienbreite, int ps, int ds, int de, int startcode) {
         BufferedImage image = new BufferedImage(breite, hoehe, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2d = image.createGraphics();
 
@@ -24,6 +24,10 @@ public class KastenErzeuger {
         g2d.fillRect(0, 0, linienbreite, hoehe);
         // Rechts
         g2d.fillRect(breite - linienbreite, 0, linienbreite, hoehe);
+
+        // Punktmuster einfügen
+        BufferedImage muster = Punktmuster.erzeugeMuster(breite, hoehe, linienbreite, ps, ds, de, startcode);
+        g2d.drawImage(muster, linienbreite, linienbreite, null);
 
         g2d.dispose();
         return image;

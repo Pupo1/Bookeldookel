@@ -5,7 +5,7 @@ import java.awt.image.BufferedImage;
 
 public class KastenTest {
     public static void test(BufferedImage image, Menu menu) {
-        BufferedImage kasten = KastenErzeuger.erzeugeKasten(menu.kastenbreite, menu.kastenhoehe, menu.linienbreite);
+        BufferedImage kasten = KastenErzeuger.erzeugeKasten(menu.kastenbreite, menu.kastenhoehe, menu.linienbreite, menu.ps, menu.ds, menu.de, menu.startcode);
         
         Graphics2D g2d = image.createGraphics();
         g2d.drawImage(kasten, menu.randlinks, menu.randoben, null);
