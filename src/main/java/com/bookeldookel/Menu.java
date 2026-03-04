@@ -42,7 +42,7 @@ public class Menu {
         ps = getInt(scanner, "Rastergröße",9);
         ds = getInt(scanner, "Punktgröße", 3);
         de = getInt(scanner, "Verschiebung", 1);
-        font = getInt(scanner, "Schriftgröße", 10);
+        font = getInt(scanner, "Schriftgröße", 40);
         startcode = getInt(scanner, "Startcode", 6729);
         offset = getInt(scanner, "Offset", 0);
 

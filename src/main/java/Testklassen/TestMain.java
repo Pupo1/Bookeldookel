@@ -25,7 +25,7 @@ public class TestMain {
         menu.ps = 9;
         menu.ds = 3;
         menu.de = 1;
-        menu.font = 10;
+        menu.font = 40;
         menu.startcode = 6729;
         menu.offset = 0;
 
@@ -36,7 +36,7 @@ public class TestMain {
         if (!codeNrInput.isEmpty()) {
             try {
                 int codeNr = Integer.parseInt(codeNrInput);
-                menu.startcode = codeNr + 6704;
+                menu.startcode = codeNr + 5685;
                 System.out.println("Startcode wurde auf " + menu.startcode + " gesetzt.");
             } catch (NumberFormatException e) {
                 System.out.println("Ungültige Code Nr., Startcode bleibt " + menu.startcode);
