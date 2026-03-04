@@ -37,9 +37,11 @@ public class Punktkacheln {
 
 
 
-        int ckBit1 = ((w[0] ^ w[2] ^ w[6] ^ w[4]) & 0x01) << 1; // die <<-Verschiebung macht diese Bit zum linken Bit
-        int ckBit0 = (w[1] ^ w[3] ^ w[7] ^ w[5]) & 0x01; // bisher nur W0,W1,W2 sicher. w4 und w7 aufgrund des Codes 006 vertauscht, sollte auch einigermaßen sicher sein, wenn es klappt.
+        int ckBit1 = ((w[1] ^ w[7] ^ w[4] ^ w[6]) & 0x01) << 1; // die <<-Verschiebung macht diese Bit zum linken Bit (aus Big-Endian-Sichtweise)
+        int ckBit0 = (w[0] ^ w[2] ^ w[3] ^ w[5]) & 0x01; // bisher nur W0,W1,W2 sicher. w4 und w7 aufgrund des Codes 006 vertauscht, sollte auch einigermaßen sicher sein, wenn es klappt.
         int ck = ckBit1 | ckBit0;
+
+        System.out.println("CK: " + ck );
 
         int[] dataValues = {w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], ck};
         int[] dataTileIndices = {5, 6, 7, 9, 10, 11, 13, 14, 15};
