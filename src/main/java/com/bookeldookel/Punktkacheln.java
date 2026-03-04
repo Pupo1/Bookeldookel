@@ -33,23 +33,12 @@ public class Punktkacheln {
 
             if (i < 7) binaryString.append(" ");
         }
-        System.out.println("Big-Endian Binär (konventionell): " + binaryString.toString());
+        System.out.println("Little-Endian Binär: " + binaryString.toString());
 
 
-// Optional: Big-Endian Darstellung zum Vergleich
-        StringBuilder bigEndianString = new StringBuilder();
-        for (int i = 7; i >= 0; i--) {
-            String bin = Integer.toBinaryString(w[i]);
-            String formattedBin = String.format("%2s", bin).replace(' ', '0');
-            bigEndianString.append(formattedBin);
-            if (i > 0) {
-                bigEndianString.append(" ");
-            }
-        }
-        System.out.println("Big-Endian Binär (konventionell): " + bigEndianString.toString());
 
-        int ckBit1 = ((w[1] ^ w[3] ^ w[4] ^ w[5]) & 0x01) << 1;
-        int ckBit0 = (w[0] ^ w[2] ^ w[6] ^ w[7]) & 0x01;
+        int ckBit1 = ((w[0] ^ w[2] ^ w[6] ^ w[4]) & 0x01) << 1; // die <<-Verschiebung macht diese Bit zum linken Bit
+        int ckBit0 = (w[1] ^ w[3] ^ w[7] ^ w[5]) & 0x01; // bisher nur W0,W1,W2 sicher. w4 und w7 aufgrund des Codes 006 vertauscht, sollte auch einigermaßen sicher sein, wenn es klappt.
         int ck = ckBit1 | ckBit0;
 
         int[] dataValues = {w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], ck};
