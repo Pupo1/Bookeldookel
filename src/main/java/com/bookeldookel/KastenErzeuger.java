@@ -27,37 +27,19 @@ public class KastenErzeuger {
         
         // Mittellinie
         int mitteX = breite / 2;
-        int halbeLinienbreite = linienbreite / 2; // Um die Linie zu zentrieren, falls linienbreite > 1
-        // Einfacher: Wir zeichnen die Linie so, dass sie genau in der Mitte ist.
-        // Wenn linienbreite ungerade ist, ist es schwer genau zu zentrieren.
-        // Wir nehmen an, die Linie beginnt bei mitteX - linienbreite/2
         int linienStartX = mitteX - (linienbreite / 2);
         g2d.fillRect(linienStartX, 0, linienbreite, hoehe);
 
-        // Linkes Muster
-        // Breite: Von linker Linie bis Mittellinie
-        // StartX: linienbreite
-        // EndX: linienStartX
+        // Linkes Muster (jetzt startcode)
         int linkeBreite = linienStartX - linienbreite;
-        // Wir müssen ein "virtuelles" Muster erzeugen, das in diesen Bereich passt.
-        // Punktmuster.erzeugeMuster erwartet die Gesamtgröße des Kastens inkl. Ränder.
-        // Das ist hier etwas tricky, da Punktmuster davon ausgeht, dass es den inneren Bereich füllt.
-        // Wir können Punktmuster so aufrufen, als ob es ein eigener Kasten wäre?
-        // Nein, Punktmuster.erzeugeMuster nimmt kastenbreite und zieht 2*linienbreite ab.
-        // Also übergeben wir:
-        // kastenbreite = linkeBreite + 2*linienbreite
-        // kastenhoehe = hoehe
-        
         int linkesMusterKastenBreite = linkeBreite + 2 * linienbreite;
-        BufferedImage linkesMuster = Punktmuster.erzeugeMuster(linkesMusterKastenBreite, hoehe, linienbreite, ps, ds, de, startcode + 41627);
+        BufferedImage linkesMuster = Punktmuster.erzeugeMuster(linkesMusterKastenBreite, hoehe, linienbreite, ps, ds, de, startcode);
         g2d.drawImage(linkesMuster, linienbreite, linienbreite, null);
 
-        // Rechtes Muster
-        // StartX: linienStartX + linienbreite
-        // EndX: breite - linienbreite
+        // Rechtes Muster (jetzt startcode + 41627)
         int rechteBreite = (breite - linienbreite) - (linienStartX + linienbreite);
         int rechtesMusterKastenBreite = rechteBreite + 2 * linienbreite;
-        BufferedImage rechtesMuster = Punktmuster.erzeugeMuster(rechtesMusterKastenBreite, hoehe, linienbreite, ps, ds, de, startcode);
+        BufferedImage rechtesMuster = Punktmuster.erzeugeMuster(rechtesMusterKastenBreite, hoehe, linienbreite, ps, ds, de, startcode + 41627);
         g2d.drawImage(rechtesMuster, linienStartX + linienbreite, linienbreite, null);
 
         g2d.dispose();

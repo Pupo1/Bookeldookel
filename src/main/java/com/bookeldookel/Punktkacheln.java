@@ -21,18 +21,32 @@ public class Punktkacheln {
         
         // 1. Startcode in 8 Zweiergruppen (W0 bis W7) zerlegen
         // Little Endian: W0 sind die Bits 1-0, W7 sind die Bits 15-14.
+        // Little-Endian: Das niederwertigste Byte (LSB) kommt zuerst
         for (int i = 0; i < 8; i++) {
-            int shift = i * 2;
-            w[i] = (startcode >> shift) & 0x03;
-            
-            // Binärdarstellung für die Konsole (2 Stellen pro Gruppe)
-            String bin = Integer.toBinaryString(w[i]);
-            if (bin.length() < 2) {
-                binaryString.append("0");
-            }
-            binaryString.append(bin);
+            w[i] = (startcode >> (i * 2)) & 0x03;
+
+            // Bits innerhalb der Gruppe umdrehen: 0->0, 1->2, 2->1, 3->3
+            int bitReversed = ((w[i] & 0x02) >> 1) | ((w[i] & 0x01) << 1);
+
+            binaryString.append(String.format("%2s", Integer.toBinaryString(bitReversed))
+                    .replace(' ', '0'));
+
+            if (i < 7) binaryString.append(" ");
         }
-        System.out.println("Errechnete Binärzahl (Little Endian): " + binaryString.toString());
+        System.out.println("Big-Endian Binär (konventionell): " + binaryString.toString());
+
+
+// Optional: Big-Endian Darstellung zum Vergleich
+        StringBuilder bigEndianString = new StringBuilder();
+        for (int i = 7; i >= 0; i--) {
+            String bin = Integer.toBinaryString(w[i]);
+            String formattedBin = String.format("%2s", bin).replace(' ', '0');
+            bigEndianString.append(formattedBin);
+            if (i > 0) {
+                bigEndianString.append(" ");
+            }
+        }
+        System.out.println("Big-Endian Binär (konventionell): " + bigEndianString.toString());
 
         int ckBit1 = ((w[1] ^ w[3] ^ w[4] ^ w[5]) & 0x01) << 1;
         int ckBit0 = (w[0] ^ w[2] ^ w[6] ^ w[7]) & 0x01;

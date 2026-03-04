@@ -45,6 +45,19 @@ public class Menu {
         font = getInt(scanner, "Schriftgröße", 10);
         startcode = getInt(scanner, "Startcode", 6729);
         offset = getInt(scanner, "Offset", 0);
+
+        // Code Nr. Abfrage
+        System.out.print("Code Nr. []: ");
+        String codeNrInput = scanner.nextLine();
+        if (!codeNrInput.isEmpty()) {
+            try {
+                int codeNr = Integer.parseInt(codeNrInput);
+                startcode = codeNr + 5738;
+                System.out.println("Startcode wurde auf " + startcode + " gesetzt.");
+            } catch (NumberFormatException e) {
+                System.out.println("Ungültige Code Nr., Startcode bleibt " + startcode);
+            }
+        }
     }
 
     private int getInt(Scanner scanner, String prompt, int defaultValue) {
