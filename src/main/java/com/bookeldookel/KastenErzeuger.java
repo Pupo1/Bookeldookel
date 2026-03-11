@@ -31,15 +31,17 @@ public class KastenErzeuger {
         g2d.fillRect(linienStartX, 0, linienbreite, hoehe);
 
         // Linkes Muster (jetzt startcode)
+        System.out.println("Aufnahmecode:");
         int linkeBreite = linienStartX - linienbreite;
         int linkesMusterKastenBreite = linkeBreite + 2 * linienbreite;
         BufferedImage linkesMuster = Punktmuster.erzeugeMuster(linkesMusterKastenBreite, hoehe, linienbreite, ps, ds, de, startcode);
         g2d.drawImage(linkesMuster, linienbreite, linienbreite, null);
 
-        // Rechtes Muster (jetzt startcode + 41627)
+        // Rechtes Muster (jetzt startcode + 5685 + 1019)
         int rechteBreite = (breite - linienbreite) - (linienStartX + linienbreite);
         int rechtesMusterKastenBreite = rechteBreite + 2 * linienbreite;
-        BufferedImage rechtesMuster = Punktmuster.erzeugeMuster(rechtesMusterKastenBreite, hoehe, linienbreite, ps, ds, de, startcode + 41627);
+        System.out.println("Startcode für den Abspielcode wird auf " + (startcode+1019) + " gesetzt." );
+        BufferedImage rechtesMuster = Punktmuster.erzeugeMuster(rechtesMusterKastenBreite, hoehe, linienbreite, ps, ds, de, startcode +1019);
         g2d.drawImage(rechtesMuster, linienStartX + linienbreite, linienbreite, null);
 
         g2d.dispose();

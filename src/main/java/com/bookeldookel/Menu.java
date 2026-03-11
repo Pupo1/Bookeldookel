@@ -52,7 +52,7 @@ public class Menu {
         if (!codeNrInput.isEmpty()) {
             try {
                 int codeNr = Integer.parseInt(codeNrInput);
-                startcode = codeNr + 5685; // 5738 für niedrigere Codes. Sehr verwirrend.
+                startcode = codeNr + 5685;
                 System.out.println("Startcode wurde auf " + startcode + " gesetzt.");
             } catch (NumberFormatException e) {
                 System.out.println("Ungültige Code Nr., Startcode bleibt " + startcode);
