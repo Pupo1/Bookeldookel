@@ -15,7 +15,8 @@ public class Main {
 
         BufferedImage image = PNG_Erzeuger.erzeugeBild(menu);
         
-        SeitenFueller.fuelleSeite(image, menu);
+        // Verwende nun den neuen Dreifach-Füller
+        SeitenFuellerDreifach.fuelleSeite(image, menu);
 
         PNG_speichern.speichern(image, menu.ausgabedateiname);
     }

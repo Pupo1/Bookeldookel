@@ -1,2 +1,18 @@
 101010101010101010
 010101010101010101
+Hallo Bernd,
+
+Du müsstest OIDs benutzen. Die Ting-IDs (nicht Code-IDs) teilen sich wie folgt
+auf:
+
+0-9999 MID (Media-ID hiermit wird ein Buch identifiziert)
+10000-14999 CID (Commercial-IDs / hiermit habe ich mich noch nicht wirklich
+beschäftigt und ich weiß auch nicht ob das auch auf dem Bookii funktioniert)
+15000-65536 OID (Object-IDs das sind die einzelnen Codes in einem Buch)
+
+Theoretisch gäbe es also rund 50000 nutzbare Codes pro Buch. Leider muss man
+mit einer Tabelle von einer Ting-ID zu einer Code-ID umrechnen und da sind
+(Stand jetzt) "nur" 9134 OIDs bekannt.
+
+Viele Grüße,
+Martin

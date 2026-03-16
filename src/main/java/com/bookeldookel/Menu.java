@@ -22,6 +22,7 @@ public class Menu {
     public int font;
     public int startcode;
     public int offset;
+    public int bilderbuchstartcode; // Neu
 
     public void start() {
         Scanner scanner = new Scanner(System.in);
@@ -39,11 +40,12 @@ public class Menu {
         ausgabedateiname = getString(scanner, "Ausgabedateiname", "out.png");
         linienbreite = getInt(scanner, "Rahmenbreite", 1);
         eingabedateiname = getString(scanner, "Eingabedatei", "codes.txt");
-        ps = getInt(scanner, "Rastergröße",9);
+        ps = getInt(scanner, "Rastergröße", 9);
         ds = getInt(scanner, "Punktgröße", 3);
         de = getInt(scanner, "Verschiebung", 1);
         font = getInt(scanner, "Schriftgröße", 40);
         startcode = getInt(scanner, "Startcode", 6729);
+        bilderbuchstartcode = getInt(scanner, "Bilderbuch Startcode", 0); // Neu
         offset = getInt(scanner, "Offset", 0);
 
         // Code Nr. Abfrage
