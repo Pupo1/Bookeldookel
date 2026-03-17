@@ -1,0 +1,113 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[ngerman]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\geometry{a4paper, margin=2.5cm}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+\title{Projektdokumentation: Bookeldookel}
+\author{Entwicklerteam}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Einleitung}
+Das Projekt \textbf{Bookeldookel} dient der automatisierten Generierung von visuellen Codes, die aus Punktmustern (Kacheln) bestehen. Diese Codes k"onnen spezifische Informationen, wie Startcodes oder spezielle Bilderbuchcodes, visuell kodieren. Das Programm generiert eine Bilddatei (PNG), die vollst"andig mit diesen Codes gef"ullt ist, basierend auf benutzerspezifischen Parametern wie Kastenbreite, Aufl"osung und Abmessungen.
+
+\section{Systemarchitektur}
+Das Projekt ist in Java geschrieben und verwendet AWT f"ur die Bildgenerierung. Die Architektur ist modular aufgebaut und trennt die Parameterverwaltung (Men"u), die Layoutberechnung, die Mustergenerierung und den Datei-Export.
+
+\subsection{Klassendiagramm \& Zust"andigkeiten}
+\begin{itemize}
+    \item \textbf{Main / MainDreifach / TestMain}: Einstiegspunkte des Programms. Sie initialisieren das Men"u und rufen die entsprechenden F"ull- und Speicherroutinen auf.
+    \item \textbf{Menu}: Kapselt alle Konfigurationsparameter (Bildgr"o"se, DPI, Kastenma"se, Startcodes) und bietet eine CLI zur manuellen Eingabe.
+    \item \textbf{LayoutCalculator}: Berechnet basierend auf den Ma"sen und R"andern, wie viele K"asten auf die Seite passen.
+    \item \textbf{KastenErzeuger / KastenErzeugerDreifach / KastenErzeugerUni}: Verantwortlich f"ur das Zeichnen eines einzelnen Kastens mit seinen jeweiligen Unterbereichen (z.B. dreigeteilt).
+    \item \textbf{Punktmuster \& EinzelMuster}: Erzeugen die grundlegenden 2x2 oder 4x4 Kacheln für den Standard-Code.
+    \item \textbf{BilderbuchMuster \& BilderbuchKacheln}: Generieren die speziellen Bilderbuchcodes basierend auf Big-Endian-Verarbeitung und einer spezifischen Checksumme.
+    \item \textbf{Punktkacheln}: Erstellt das Array von 16 kleinen Quadraten (Kacheln) f"ur die Standard-Codes.
+    \item \textbf{Einzelpunkt \& Punktposition}: Dienen der Positionierung und Zeichnung des eigentlichen schwarzen Quadrats innerhalb einer weißen Kachel.
+    \item \textbf{NummernEinblender / NummernEinblenderDreifach}: F"ugen die lesbaren Dezimalzahlen (Startcode etc.) in die erzeugten Bildk"asten ein.
+    \item \textbf{SeitenFueller / SeitenFuellerDreifach}: Iterieren "uber das berechnete Layout und platzieren die einzelnen K"asten auf dem Gesamtbild.
+    \item \textbf{PNG\_Erzeuger \& PNG\_speichern}: Initialisieren das gro"se \texttt{BufferedImage} und speichern das fertige Bild als 1-Bit-PNG mit korrekten DPI-Metadaten.
+\end{itemize}
+
+\section{Codierungslogik}
+Die Codierung erfolgt "uber die Platzierung von kleinen schwarzen Quadraten innerhalb eines 4x4 Rasters.
+
+\subsection{Standard-Code (Little-Endian)}
+\begin{itemize}
+    \item Der 16-Bit-Startcode wird in 8 Zweiergruppen ($W_0$ bis $W_7$) zerlegt.
+    \item Die Verarbeitung erfolgt im \textit{Little-Endian}-Format.
+    \item Jede Zweiergruppe kodiert die Position des schwarzen Quadrats in der jeweiligen Kachel (00: Oben Links, 01: Oben Rechts, 10: Unten Rechts, 11: Unten Links).
+    \item Es gibt feste Kacheln (immer zentriert) zur Orientierung.
+    \item Eine Checksumme wird f"ur die 9. Kachel berechnet und linksb"undig verschoben.
+\end{itemize}
+
+\subsection{Bilderbuch-Code (Big-Endian)}
+\begin{itemize}
+    \item Der Code wird in 8 Zweiergruppen zerlegt, jedoch im \textit{Big-Endian}-Format ($W_7$ bis $W_0$).
+    \item Die Checksumme berechnet sich spezifisch nach: \\
+    \texttt{CK = (((W1 XOR W4 XOR W6 XOR W7) AND 0x01) << 1) OR ((W0 XOR W2 XOR W3 XOR W5) AND 0x01)}
+    \item Die 9. Kachel dient hier als rechtsverschobene Markierung.
+    \item Die Anordnung der Kacheln ist umgekehrt (Checksumme zuerst, dann $W_7$ bis $W_0$).
+\end{itemize}
+
+\section{Bedienung}
+Beim Start "uber die CLI-Klassen (z.B. \texttt{TestMainDreifach}) werden Default-Werte f"ur die Ma"se geladen. Der Nutzer wird lediglich nach dem \texttt{Code Nr.} (Startcode) und dem \texttt{Bilderbuch Startcode} gefragt.
+\newline
+Beispielhafte Ausgabe:
+\begin{lstlisting}[language=bash]
+Code Nr. (Startcode) []: 123
+Startcode wurde auf 5808 gesetzt.
+Bilderbuch Startcode []: 456
+Bilderbuch Startcode wurde auf 456 gesetzt.
+Anzahl Spalten: 11
+Anzahl Zeilen: 27
+Bild erfolgreich gespeichert unter: src/main/resources/out_dreifach.png
+\end{lstlisting}
+
+\section{Erweiterbarkeit}
+Das System ist so ausgelegt, dass neue Codierungsschemata leicht hinzugef"ugt werden k"onnen. Man erstellt dazu:
+\begin{enumerate}
+    \item Eine neue Kachel-Klasse (analog zu \texttt{BilderbuchKacheln}).
+    \item Eine zugeh"orige Muster-Klasse (analog zu \texttt{BilderbuchMuster}).
+    \item Eine Anpassung im KastenErzeuger, um das neue Muster an der gew"unschten Stelle zu platzieren.
+\end{enumerate}
+
+\end{document}

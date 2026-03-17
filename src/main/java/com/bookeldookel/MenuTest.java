@@ -3,6 +3,7 @@ package com.bookeldookel;
 public class MenuTest {
     public static void printValues(Menu menu) {
         System.out.println("\nErfasste Werte:");
+        System.out.println("Modus: " + menu.modus);
         System.out.println("Bildbreite: " + menu.bildbreite);
         System.out.println("Bildhöhe: " + menu.bildhoehe);
         System.out.println("Rand links: " + menu.randlinks);
@@ -21,6 +22,9 @@ public class MenuTest {
         System.out.println("Verschiebung: " + menu.de);
         System.out.println("Schriftgröße: " + menu.font);
         System.out.println("Startcode: " + menu.startcode);
+        if (menu.modus == 3) {
+            System.out.println("Bilderbuch Startcode: " + menu.bilderbuchstartcode);
+        }
         System.out.println("Offset: " + menu.offset);
     }
 }

@@ -22,7 +22,8 @@ public class Menu {
     public int font;
     public int startcode;
     public int offset;
-    public int bilderbuchstartcode; // Neu
+    public int bilderbuchstartcode;
+    public int modus; // Neu für die Auswahl
 
     public void start() {
         Scanner scanner = new Scanner(System.in);
@@ -44,8 +45,19 @@ public class Menu {
         ds = getInt(scanner, "Punktgröße", 3);
         de = getInt(scanner, "Verschiebung", 1);
         font = getInt(scanner, "Schriftgröße", 40);
+        
+        System.out.println("\nModus Auswahl:");
+        System.out.println("1 = Einfach (Ein Code pro Kasten)");
+        System.out.println("2 = Zweifach (Zwei Codes pro Kasten)");
+        System.out.println("3 = Dreifach (Zwei Codes + Bilderbuchcode)");
+        modus = getInt(scanner, "Modus", 3);
+
         startcode = getInt(scanner, "Startcode", 6729);
-        bilderbuchstartcode = getInt(scanner, "Bilderbuch Startcode", 0); // Neu
+        
+        if (modus == 3) {
+            bilderbuchstartcode = getInt(scanner, "Bilderbuch Startcode", 0);
+        }
+
         offset = getInt(scanner, "Offset", 0);
 
         // Code Nr. Abfrage

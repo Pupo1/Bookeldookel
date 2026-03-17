@@ -15,9 +15,43 @@ public class Main {
 
         BufferedImage image = PNG_Erzeuger.erzeugeBild(menu);
         
-        // Verwende nun den neuen Dreifach-Füller
-        SeitenFuellerDreifach.fuelleSeite(image, menu);
+        // Verzweigung je nach Modus
+        if (menu.modus == 1) {
+            // Für Modus 1 (Einfach) müssen wir einen passenden SeitenFueller erstellen oder den KastenErzeugerUni nutzen
+            // Da wir noch keinen SeitenFuellerUni haben, iterieren wir hier schnell oder rufen eine Hilfsmethode auf.
+            fuelleSeiteUni(image, menu);
+        } else if (menu.modus == 2) {
+            SeitenFueller.fuelleSeite(image, menu);
+        } else {
+            // Default Modus 3
+            SeitenFuellerDreifach.fuelleSeite(image, menu);
+        }
 
         PNG_speichern.speichern(image, menu.ausgabedateiname);
+    }
+
+    private static void fuelleSeiteUni(BufferedImage image, Menu menu) {
+        int[] layout = LayoutCalculator.calculate(menu);
+        int cols = layout[0];
+        int rows = layout[1];
+        
+        if (cols == 0 || rows == 0) return;
+
+        java.awt.Graphics2D g2d = image.createGraphics();
+        int currentCode = menu.startcode;
+
+        for (int col = 0; col < cols; col++) {
+            for (int row = 0; row < rows; row++) {
+                int x = menu.randlinks + col * (menu.kastenbreite + menu.horizAbstand);
+                int y = menu.randoben + row * (menu.kastenhoehe + menu.vertAbstand);
+                
+                BufferedImage kasten = KastenErzeugerUni.erzeugeKasten(menu.kastenbreite, menu.kastenhoehe, menu.linienbreite, menu.ps, menu.ds, menu.de, currentCode);
+                kasten = NummernEinblender.blendeNummerEin(kasten, currentCode, menu.font);
+                
+                g2d.drawImage(kasten, x, y, null);
+                currentCode++;
+            }
+        }
+        g2d.dispose();
     }
 }
