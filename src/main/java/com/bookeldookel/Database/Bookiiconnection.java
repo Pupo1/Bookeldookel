@@ -22,8 +22,11 @@ public class Bookiiconnection {
         Path bookiiDrive = null;
         System.out.println("Suche nach BOOKII_APP...");
 
+        int versuche = 0;
+        final int MAX_VERSUCHE = 10;
+
         // 1. Warten, bis der Stift (BOOKII_APP) angeschlossen ist.
-        while (bookiiDrive == null) {
+        while (bookiiDrive == null && versuche < MAX_VERSUCHE) {
             for (Path root : FileSystems.getDefault().getRootDirectories()) {
                 try {
                     FileStore store = Files.getFileStore(root);
@@ -37,7 +40,12 @@ public class Bookiiconnection {
             }
 
             if (bookiiDrive == null) {
-                System.out.println("Bitte den Stift mit einem USB-Kabel mit dem Computer verbinden!");
+                versuche++;
+                System.out.println("Bitte den Stift mit einem USB-Kabel mit dem Computer verbinden! (Versuch " + versuche + " von " + MAX_VERSUCHE + ")");
+                if (versuche >= MAX_VERSUCHE) {
+                    System.out.println("Kein Stift gefunden nach " + MAX_VERSUCHE + " Versuchen. Überspringe Übertragung.");
+                    return; // Beende die Methode und fahre mit dem Hauptprogramm fort
+                }
                 try {
                     Thread.sleep(3000); // 3 Sekunden warten
                 } catch (InterruptedException e) {
