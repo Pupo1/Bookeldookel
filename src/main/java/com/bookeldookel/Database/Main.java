@@ -11,7 +11,10 @@ public class Main {
         // 3. Alle verschobenen Dateien transkribieren und in die DB speichern
         Transkript.transkribiereVerzeichnis();
         
-        // 4. Datenbankverbindung am Ende schließen
+        // 4. Transkriptionen prüfen
+        TranskriptionsPruefer.pruefeTranskriptionen();
+        
+        // 5. Datenbankverbindung am Ende schließen
         Datenbankmanager.schliesseVerbindung();
     }
 }
