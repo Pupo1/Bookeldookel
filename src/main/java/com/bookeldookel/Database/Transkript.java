@@ -16,7 +16,7 @@ import java.util.stream.Stream;
 public class Transkript {
 
     // Das Modell, das wir verwenden wollen
-    private static final String MODEL_NAME = "gemma-3-12b"; 
+    private static final String MODEL_NAME = "gemini-2.0-flash";
 
     /**
      * Stellt sicher, dass die Datenbank-Tabelle existiert.
@@ -171,6 +171,9 @@ public class Transkript {
                lowerText.contains("429 too many requests") ||
                lowerText.contains("quota exceeded") ||
                lowerText.contains("rate limit") ||
-               lowerText.contains("exception");
+               lowerText.contains("exception") ||
+               lowerText.contains("404 not found") ||
+               lowerText.contains("is not found for api version") ||
+               lowerText.contains("is not supported for");
     }
 }

@@ -1,6 +1,9 @@
 package com.bookeldookel.Database;
 
 public class Main {
+    // Globale Variable für den Developer-Modus
+    public static final boolean DEVELOPER_MODUS = true;
+
     public static void main(String[] args) {
         // 1. Datenbank initialisieren (Tabelle erstellen, falls nicht vorhanden)
         Transkript.initDatabase();

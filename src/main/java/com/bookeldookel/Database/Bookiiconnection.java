@@ -23,7 +23,8 @@ public class Bookiiconnection {
         System.out.println("Suche nach BOOKII_APP...");
 
         int versuche = 0;
-        final int MAX_VERSUCHE = 10;
+        // Im Developer-Modus nur 1 Versuch, sonst 10
+        final int MAX_VERSUCHE = Main.DEVELOPER_MODUS ? 1 : 10;
 
         // 1. Warten, bis der Stift (BOOKII_APP) angeschlossen ist.
         while (bookiiDrive == null && versuche < MAX_VERSUCHE) {
@@ -54,53 +55,58 @@ public class Bookiiconnection {
                 }
             }
         }
-        System.out.println("BOOKII_APP gefunden auf Laufwerk: " + bookiiDrive + ". Durchsuche nun alle Laufwerke nach 'diyrecord'...");
+        
+        // Sollte nie erreicht werden, wenn bookiiDrive null ist und MAX_VERSUCHE erreicht wurde,
+        // da wir im if-Block oben schon 'return' aufrufen. Zur Sicherheit trotzdem prüfen.
+        if (bookiiDrive != null) {
+            System.out.println("BOOKII_APP gefunden auf Laufwerk: " + bookiiDrive + ". Durchsuche nun alle Laufwerke nach 'diyrecord'...");
 
-        // 2. Alle Laufwerke nach dem Ordner "diyrecord" durchsuchen.
-        boolean foundAnyDiyRecordFolder = false;
+            // 2. Alle Laufwerke nach dem Ordner "diyrecord" durchsuchen.
+            boolean foundAnyDiyRecordFolder = false;
 
-        for (Path root : FileSystems.getDefault().getRootDirectories()) {
-            Path sourceDir = root.resolve("diyrecord");
+            for (Path root : FileSystems.getDefault().getRootDirectories()) {
+                Path sourceDir = root.resolve("diyrecord");
 
-            if (Files.exists(sourceDir) && Files.isDirectory(sourceDir)) {
-                foundAnyDiyRecordFolder = true;
-                System.out.println("Ordner 'diyrecord' gefunden auf Laufwerk: " + root);
+                if (Files.exists(sourceDir) && Files.isDirectory(sourceDir)) {
+                    foundAnyDiyRecordFolder = true;
+                    System.out.println("Ordner 'diyrecord' gefunden auf Laufwerk: " + root);
 
-                try {
-                    try (Stream<Path> paths = Files.list(sourceDir)) {
-                        long count = 0;
-                        for (Path source : (Iterable<Path>) paths::iterator) {
-                            if (source.toString().toLowerCase().endsWith(".wav")) {
-                                try {
-                                    Path target = targetDir.resolve(source.getFileName());
-                                    Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
-                                    System.out.println("  -> Verschoben: " + source.getFileName());
-                                    count++;
-                                } catch (IOException e) {
-                                    System.err.println("  -> Fehler beim Verschieben von " + source.getFileName() + ": " + e.getMessage());
+                    try {
+                        try (Stream<Path> paths = Files.list(sourceDir)) {
+                            long count = 0;
+                            for (Path source : (Iterable<Path>) paths::iterator) {
+                                if (source.toString().toLowerCase().endsWith(".wav")) {
+                                    try {
+                                        Path target = targetDir.resolve(source.getFileName());
+                                        Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+                                        System.out.println("  -> Verschoben: " + source.getFileName());
+                                        count++;
+                                    } catch (IOException e) {
+                                        System.err.println("  -> Fehler beim Verschieben von " + source.getFileName() + ": " + e.getMessage());
+                                    }
                                 }
                             }
-                        }
 
-                        if (count == 0) {
-                            System.out.println("  -> Keine .wav-Dateien in diesem Ordner gefunden.");
-                        } else {
-                            System.out.println("  -> " + count + " .wav-Dateien wurden erfolgreich verschoben.");
+                            if (count == 0) {
+                                System.out.println("  -> Keine .wav-Dateien in diesem Ordner gefunden.");
+                            } else {
+                                System.out.println("  -> " + count + " .wav-Dateien wurden erfolgreich verschoben.");
+                            }
                         }
+                    } catch (IOException e) {
+                        System.err.println("Fehler beim Zugriff auf Verzeichnis: " + sourceDir + " - " + e.getMessage());
                     }
-                } catch (IOException e) {
-                    System.err.println("Fehler beim Zugriff auf Verzeichnis: " + sourceDir + " - " + e.getMessage());
                 }
             }
-        }
 
-        if (!foundAnyDiyRecordFolder) {
-            System.out.println("Der Ordner 'diyrecord' wurde auf keinem Laufwerk gefunden.");
-        }
+            if (!foundAnyDiyRecordFolder) {
+                System.out.println("Der Ordner 'diyrecord' wurde auf keinem Laufwerk gefunden.");
+            }
 
-        // 3. Laufwerk "BOOKII_APP" (bookiiDrive) auswerfen
-        System.out.println("Versuche Laufwerk " + bookiiDrive + " auszuwerfen...");
-        ejectDrive(bookiiDrive);
+            // 3. Laufwerk "BOOKII_APP" (bookiiDrive) auswerfen
+            System.out.println("Versuche Laufwerk " + bookiiDrive + " auszuwerfen...");
+            ejectDrive(bookiiDrive);
+        }
     }
 
     private static void ejectDrive(Path drivePath) {

@@ -22,6 +22,8 @@ dependencies {
 
     // SLF4J Simple Logger um die SLF4J Warnung zu beheben
     implementation("org.slf4j:slf4j-simple:2.0.12")
+
+
 }
 
 tasks.test {
