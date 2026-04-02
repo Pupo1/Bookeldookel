@@ -15,7 +15,10 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     
     // Google Gen AI SDK (für einfache API Keys)
-    implementation("com.google.genai:google-genai:0.1.0") // Überprüfe ggf. die neueste Version auf Maven Central
+    implementation("com.google.genai:google-genai:0.1.0") 
+    
+    // MariaDB JDBC Treiber
+    implementation("org.mariadb.jdbc:mariadb-java-client:3.3.3")
 }
 
 tasks.test {
