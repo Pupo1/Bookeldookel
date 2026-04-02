@@ -35,10 +35,11 @@ public class Transkript {
         System.out.println("Starte Gemini-Transkription für: " + audioFile.getFileName() + " ...");
 
         // API Key aus der Umgebungsvariable lesen
-        String apiKey = System.getenv("BOOKELDOKEL_API_KEY");
+
+        String apiKey = System.getenv("BOOKELDOOKEL_API_KEY");
         
         if (apiKey == null || apiKey.trim().isEmpty()) {
-             System.err.println("FEHLER: Die Umgebungsvariable 'BOOKELDOKEL_API_KEY' ist nicht gesetzt.");
+             System.err.println("FEHLER: Die Umgebungsvariable 'BOOKELDOOKEL_API_KEY' ist nicht gesetzt.");
              return "Fehler: API-Key fehlt.";
         }
 
