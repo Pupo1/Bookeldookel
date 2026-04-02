@@ -14,8 +14,7 @@ import java.util.Base64;
 public class Transkript {
 
     // Das Modell, das wir verwenden wollen
-    // Wichtig: Gemini 2.5 Flash heißt "gemini-2.5-flash" 
-    private static final String MODEL_NAME = "gemini-1.5-flash"; 
+    private static final String MODEL_NAME = "gemini-3-flash-preview"; 
 
     /**
      * Stellt sicher, dass die Datenbank-Tabelle existiert.
@@ -32,7 +31,9 @@ public class Transkript {
      * @return Der transkribierte Text oder eine Fehlermeldung.
      */
     public static String transkribiere(Path audioFile) {
-        System.out.println("Starte Gemini-Transkription für: " + audioFile.getFileName() + " ...");
+        String pfadStr = audioFile.toAbsolutePath().toString();
+
+        System.out.println("Starte Gemini-Transkription (" + MODEL_NAME + ") für: " + audioFile.getFileName() + " ...");
 
         // API Key aus der Umgebungsvariable lesen
         String apiKey = System.getenv("BOOKELDOOKEL_API_KEY");
@@ -42,7 +43,7 @@ public class Transkript {
              return "Fehler: API-Key fehlt.";
         }
 
-        String transcribedText = null;
+        String transcribedText;
 
         try (Client client = Client.builder().apiKey(apiKey).build()) {
 
@@ -92,8 +93,8 @@ public class Transkript {
             transcribedText = "Fehler bei der API-Anfrage: " + e.getMessage();
         }
 
-        // In die Datenbank schreiben
-        Datenbankmanager.speichereTranskription(audioFile.toAbsolutePath().toString(), transcribedText);
+        // In die Datenbank schreiben (oder aktualisieren)
+        Datenbankmanager.speichereOderAktualisiereTranskription(pfadStr, transcribedText);
 
         return transcribedText;
     }
