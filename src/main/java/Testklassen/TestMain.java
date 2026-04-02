@@ -1,6 +1,10 @@
 package Testklassen;
 
-import com.bookeldookel.*;
+import com.bookeldookel.Etikettendrucker.LayoutCalculator;
+import com.bookeldookel.Etikettendrucker.Menu;
+import com.bookeldookel.Etikettendrucker.PNG_Erzeuger;
+import com.bookeldookel.Etikettendrucker.PNG_speichern;
+
 import java.awt.image.BufferedImage;
 import java.util.Scanner;
 

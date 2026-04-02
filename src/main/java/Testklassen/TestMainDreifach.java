@@ -1,6 +1,7 @@
 package Testklassen;
 
-import com.bookeldookel.*;
+import com.bookeldookel.Etikettendrucker.*;
+
 import java.awt.image.BufferedImage;
 import java.util.Scanner;
 

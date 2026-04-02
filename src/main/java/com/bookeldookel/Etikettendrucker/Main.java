@@ -1,4 +1,6 @@
-package com.bookeldookel;
+package com.bookeldookel.Etikettendrucker;
+
+import Testklassen.MenuTest;
 
 import java.awt.image.BufferedImage;
 
@@ -53,5 +55,26 @@ public class Main {
             }
         }
         g2d.dispose();
+    }
+    public class TextMitPause {
+
+        public static void main(String[] args) {
+            // Erster mehrzeiliger Text
+            System.out.println("Sende Prompt...\n"
+                    + "Das ist ein mehrzeiliger Text.\n"
+                    + "Die Ausgabe erfolgt sofort.");
+
+            // 10 Sekunden warten (10000 Millisekunden)
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e) {
+                System.out.println("Die Wartezeit wurde unterbrochen.");
+            }
+
+            // Zweiter mehrzeiliger Text
+            System.out.println("\nJetzt sind 10 Sekunden vergangen!\n"
+                    + "Hier ist der zweite mehrzeilige Text.\n"
+                    + "Programm beendet.");
+        }
     }
 }

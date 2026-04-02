@@ -1,4 +1,4 @@
-package com.bookeldookel;
+package com.bookeldookel.Etikettendrucker;
 
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;

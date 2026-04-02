@@ -1,4 +1,4 @@
-package com.bookeldookel;
+package com.bookeldookel.Etikettendrucker;
 
 public class Punktposition {
     public static int[] getPosition() {

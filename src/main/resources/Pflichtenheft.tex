@@ -1,0 +1,117 @@
+\documentclass[12pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[ngerman]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{tabularx}
+
+\geometry{left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+
+\title{Pflichtenheft}
+\author{Fachinformatiker Anwendungsentwicklung}
+\date{\today}
+\begin{document}
+
+%--- Deckblatt ---
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    {\Huge \textbf{Pflichtenheft}}\\[1.5cm]
+    {\Large \textbf{Projektname:}\\[0.3cm]
+    \textbf{\glqq Bookii-gestütztes Lagersystem für private Haushalte\grqq}}\\[2cm]
+
+    \begin{tabular}{>{\bfseries}l l}
+        Auftraggeber: & GFN \\
+        Projektleitung: & Fachinformatiker Anwendungsentwicklung \\
+        Datum: & \today \\
+    \end{tabular}
+    \vfill
+\end{titlepage}
+
+\setcounter{page}{1}
+\tableofcontents
+\newpage
+
+\section{Zielbestimmung}
+Dieses Pflichtenheft beschreibt die detaillierten technischen und fachlichen Anforderungen zur Umsetzung des im Projektantrag definierten Projekts \glqq Bookii-gestütztes Lagersystem für private Haushalte\grqq. Ziel ist die Entwicklung eines funktionalen Prototyps, der die Lagerverwaltung in einem privaten Haushalt mittels Tangible User Interfaces (TUI) durch den Bookii-Stift unterstützt.
+
+\subsection{Muss-Kriterien}
+\begin{itemize}
+    \item Generierung und Ausdruck von Bookii-kompatiblen Punktcodes.
+    \item Zuweisung einer eindeutigen digitalen ID (Startcode) zu physischen Artikeln via Punktcode.
+    \item Erfassung von Artikeln in einer Datenbank (Hinzufügen, Identifizieren).
+    \item Systemarchitektur bestehend aus bedrucktem Papier (Frontend), Bookii-Stift, und Backend-Logik (Java).
+    \item Persistente Speicherung der Lagerdaten in einer relationalen Datenbank (MariaDB).
+\end{itemize}
+
+\subsection{Soll-Kriterien}
+\begin{itemize}
+    \item Vorschlagssoftware für Lagerorte.
+    \item Kurze Reaktionszeiten ($<$ 2 Sekunden) für eine flüssige Interaktion.
+    \item Strukturierter und versionierter Quellcode (Git).
+\end{itemize}
+
+\subsection{Kann-Kriterien (optional)}
+\begin{itemize}
+    \item Erweiterte Statistiken über Lagerbestände.
+    \item Weboberfläche zur visuellen Verwaltung parallel zum Stift.
+\end{itemize}
+
+\subsection{Abgrenzung}
+Nicht Teil des Projekts ist die kommerzielle Veröffentlichung, das Entschlüsseln proprietärer Malbuchcodes oder die Neuentwicklung der Bookii-Stift-Hardware.
+
+\section{Produkteinsatz}
+\subsection{Anwendungsbereiche}
+Private Haushalte und Demonstrationsumgebungen im betrieblichen Ausbildungskontext der GFN.
+\subsection{Zielgruppen}
+Endanwender, die ihr Inventar verwalten möchten, ohne durchgehend ein klassisches Display (Smartphone/PC) bedienen zu müssen.
+
+\section{Produktübersicht / Systemarchitektur}
+Das System besteht aus drei Hauptkomponenten:
+\begin{enumerate}
+    \item \textbf{Physisches Interface:} Bedrucktes Papier mit spezifischen Punktmustern (Little-Endian und Big-Endian Codierungen).
+    \item \textbf{Eingabegerät:} Der Bookii-Stift, der die Codes optisch erfasst und verarbeitet.
+    \item \textbf{Backend:} Eine Java-Anwendung, die mit einer MariaDB-Datenbank kommuniziert, um die Logik der Lagerverwaltung abzubilden.
+\end{enumerate}
+
+\section{Produktfunktionen}
+\begin{itemize}
+    \item \textbf{F01 - Code-Generierung:} Erzeugung von ausdruckbaren PNG-Bildern mit definierten Punktcodes in verschiedenen Formaten (einfach, zweifach, dreifach mit Bilderbuchcode).
+    \item \textbf{F02 - Artikelregistrierung:} Ein neuer Artikel wird durch Antippen des generierten Codes mit dem Bookii-Stift im System registriert.
+    \item \textbf{F03 - Artikelverwaltung:} Bearbeiten und Löschen von registrierten Artikeln.
+    \item \textbf{F04 - Persistenz:} Speichern der Metadaten (ID, Name, Ort) in der Datenbank.
+\end{itemize}
+
+\section{Produktdaten}
+Das System muss folgende Daten dauerhaft speichern (in MariaDB):
+\begin{itemize}
+    \item \textbf{Artikel:} ID (generiert aus dem Code), Name, Kategorie.
+    \item \textbf{Lagerorte:} ID, Name, Beschreibung.
+    \item \textbf{Lagerbestand:} Verknüpfung von Artikel-ID, Lagerort-ID und Anzahl.
+\end{itemize}
+
+\section{Produktleistungen}
+\begin{itemize}
+    \item \textbf{Zuverlässigkeit:} Das System muss eingehende Signale des Stiftes fehlerfrei den Datenbankeinträgen zuordnen.
+    \item \textbf{Reaktionszeit:} Audio- oder Systemfeedback innerhalb von 2 Sekunden nach dem Scannen.
+\end{itemize}
+
+\section{Qualitätsanforderungen}
+\begin{itemize}
+    \item Modulare und erweiterbare Java-Architektur.
+    \item Code-Dokumentation gemäß Best Practices.
+    \item Erstellung einer verständlichen Benutzeranleitung.
+\end{itemize}
+
+\section{Entwicklungsumgebung}
+\begin{itemize}
+    \item \textbf{Programmiersprache:} Java
+    \item \textbf{IDE:} IntelliJ IDEA
+    \item \textbf{Datenbank:} MariaDB
+    \item \textbf{Versionsverwaltung:} Git / GitHub
+    \item \textbf{Hardware:} Bookii-Stift, Standard-PC (Windows/Linux), 600-DPI-Drucker.
+\end{itemize}
+
+\end{document}

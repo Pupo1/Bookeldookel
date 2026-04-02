@@ -1,4 +1,4 @@
-package com.bookeldookel;
+package com.bookeldookel.Etikettendrucker;
 
 import java.awt.Color;
 import java.awt.Font;

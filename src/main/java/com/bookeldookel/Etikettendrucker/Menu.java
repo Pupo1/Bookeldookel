@@ -1,4 +1,4 @@
-package com.bookeldookel;
+package com.bookeldookel.Etikettendrucker;
 
 import java.util.Scanner;
 
@@ -30,14 +30,14 @@ public class Menu {
 
         bildbreite = getInt(scanner, "Bildbreite", 4880);
         bildhoehe = getInt(scanner, "Bildhöhe", 6680);
-        randlinks = getInt(scanner, "Rand links in Pixeln", 10);
-        randoben = getInt(scanner, "Rand oben in Pixeln", 10);
-        randrechts = getInt(scanner, "Mindestrand rechts in Pixeln", 10);
-        randunten = getInt(scanner, "Mindestrand unten in Pixeln", 10);
-        kastenbreite = getInt(scanner, "Kastenbreite in Pixeln", 402);
-        kastenhoehe = getInt(scanner, "Kastenhöhe in Pixeln", 236);
-        horizAbstand = getInt(scanner, "Horizontaler Abstand zwischen den Kästen", 10);
-        vertAbstand = getInt(scanner, "Vertikaler Abstand zwischen den Kästen", 10);
+        randlinks = getInt(scanner, "Rand links in Pixeln", 392);
+        randoben = getInt(scanner, "Rand oben in Pixeln", 378-49); // 47 Pixel Druckerbedingter Zusatzrand
+        randrechts = getInt(scanner, "Mindestrand rechts in Pixeln", 200); // 390 eigentlich laut Berechnung
+        randunten = getInt(scanner, "Mindestrand unten in Pixeln", 200);// eigentlich 283
+        kastenbreite = getInt(scanner, "Kastenbreite in Pixeln", 425-11); // aus irgendeinem Grund waren die korrekt bemessenen Kästen zu breit
+        kastenhoehe = getInt(scanner, "Kastenhöhe in Pixeln", 260-28); // -25 waren die Kästen noch zu hoch, bei 30 zu flach
+        horizAbstand = getInt(scanner, "Horizontaler Abstand zwischen den Kästen", 0);
+        vertAbstand = getInt(scanner, "Vertikaler Abstand zwischen den Kästen", 0);
         ausgabedateiname = getString(scanner, "Ausgabedateiname", "out.png");
         linienbreite = getInt(scanner, "Rahmenbreite", 1);
         eingabedateiname = getString(scanner, "Eingabedatei", "codes.txt");
@@ -55,14 +55,17 @@ public class Menu {
         startcode = getInt(scanner, "Startcode", 6729);
         
         if (modus == 3) {
-            bilderbuchstartcode = getInt(scanner, "Bilderbuch Startcode", 0);
+            bilderbuchstartcode = getInt(scanner, "Bilderbuch Startcode", 15000);
         }
 
         offset = getInt(scanner, "Offset", 0);
 
         // Code Nr. Abfrage
-        System.out.print("Code Nr. []: ");
+        System.out.print("Code Nr. [optional]: ");
         String codeNrInput = scanner.nextLine();
+        // wollte ich umschreiben, dass optional, klappt aber nicht:
+        // falls ein Code angegeben wird, wir dder Startcode überschrieben
+        // String codeNrInput = getInt(scanner, "CodeNr (optional) :", 30);
         if (!codeNrInput.isEmpty()) {
             try {
                 int codeNr = Integer.parseInt(codeNrInput);

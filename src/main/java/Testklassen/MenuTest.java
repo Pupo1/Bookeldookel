@@ -1,4 +1,6 @@
-package com.bookeldookel;
+package Testklassen;
+
+import com.bookeldookel.Etikettendrucker.Menu;
 
 public class MenuTest {
     public static void printValues(Menu menu) {

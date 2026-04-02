@@ -1,4 +1,4 @@
-package com.bookeldookel;
+package com.bookeldookel.Etikettendrucker;
 
 public class LayoutCalculator {
     public static int[] calculate(Menu menu) {

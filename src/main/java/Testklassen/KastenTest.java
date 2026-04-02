@@ -1,8 +1,8 @@
 package Testklassen;
 
-import com.bookeldookel.KastenErzeuger;
-import com.bookeldookel.Menu;
-import com.bookeldookel.NummernEinblender;
+import com.bookeldookel.Etikettendrucker.KastenErzeuger;
+import com.bookeldookel.Etikettendrucker.Menu;
+import com.bookeldookel.Etikettendrucker.NummernEinblender;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
