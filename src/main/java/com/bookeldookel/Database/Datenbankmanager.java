@@ -84,7 +84,7 @@ public class Datenbankmanager {
             pstmt.setString(2, inhalt);
             
             pstmt.executeUpdate();
-            System.out.println("Transkription in Datenbank gespeichert: " + pfad);
+            System.out.println("Transkription in Datenbank gespeichert: " + pfad + " -> " + inhalt);
         } catch (SQLException e) {
             System.err.println("Fehler beim Speichern in der Datenbank: " + e.getMessage());
         }
@@ -155,7 +155,7 @@ public class Datenbankmanager {
                 pstmtUpdate.setString(1, inhalt);
                 pstmtUpdate.setString(2, pfad);
                 pstmtUpdate.executeUpdate();
-                System.out.println("Transkription in Datenbank aktualisiert: " + pfad);
+                System.out.println("Transkription in Datenbank aktualisiert: " + pfad + " -> " + inhalt);
             } catch (SQLException e) {
                 System.err.println("Fehler beim Aktualisieren in der Datenbank: " + e.getMessage());
             }

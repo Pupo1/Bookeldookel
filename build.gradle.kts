@@ -19,6 +19,9 @@ dependencies {
     
     // MariaDB JDBC Treiber
     implementation("org.mariadb.jdbc:mariadb-java-client:3.3.3")
+
+    // SLF4J Simple Logger um die SLF4J Warnung zu beheben
+    implementation("org.slf4j:slf4j-simple:2.0.12")
 }
 
 tasks.test {
