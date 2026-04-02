@@ -21,6 +21,12 @@ public class Main {
                      .forEach(wavFile -> {
                          Transkript.transkribiere(wavFile);
                          System.out.println("Verarbeitung für " + wavFile.getFileName() + " abgeschlossen.");
+                         try {
+                             // Warte 13 Sekunden, um unter dem Limit von 5 Anfragen/Minute zu bleiben (60/5 = 12)
+                             Thread.sleep(13000); 
+                         } catch (InterruptedException e) {
+                             Thread.currentThread().interrupt();
+                         }
                      });
             } catch (IOException e) {
                 System.err.println("Fehler beim Zugriff auf diyrecord: " + e.getMessage());

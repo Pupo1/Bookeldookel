@@ -15,7 +15,7 @@ public class Transkript {
 
     // Das Modell, das wir verwenden wollen
     // Wichtig: Gemini 2.5 Flash heißt "gemini-2.5-flash" 
-    private static final String MODEL_NAME = "gemini-2.5-flash"; 
+    private static final String MODEL_NAME = "gemini-1.5-flash"; 
 
     /**
      * Stellt sicher, dass die Datenbank-Tabelle existiert.
@@ -35,7 +35,6 @@ public class Transkript {
         System.out.println("Starte Gemini-Transkription für: " + audioFile.getFileName() + " ...");
 
         // API Key aus der Umgebungsvariable lesen
-
         String apiKey = System.getenv("BOOKELDOOKEL_API_KEY");
         
         if (apiKey == null || apiKey.trim().isEmpty()) {
