@@ -76,18 +76,27 @@ public class Datenbankmanager {
             
             // Prüfen, ob die Spalte 'zuordnung' existiert, ansonsten hinzufügen
             try {
-                // Wir versuchen, eine Spalte auszuwählen.
-                // Wenn die Spalte nicht existiert, wirft die DB einen SQLException
                 stmt.execute("SELECT zuordnung FROM tonaufnahmen LIMIT 1");
             } catch (SQLException e) {
-                // Spalte existiert vermutlich nicht, wir versuchen sie hinzuzufügen
-                if (e.getMessage().toLowerCase().contains("unknown column") || e.getMessage().toLowerCase().contains("bad field error")) {
+                if (e.getMessage().toLowerCase().contains("unknown column")) {
                     System.out.println("Spalte 'zuordnung' fehlt in 'tonaufnahmen', wird hinzugefügt...");
                     stmt.execute("ALTER TABLE tonaufnahmen ADD COLUMN zuordnung VARCHAR(255)");
                     System.out.println("Spalte 'zuordnung' erfolgreich hinzugefügt.");
                 } else {
-                    // Anderer Fehler, den wir nicht ignorieren sollten
                     System.err.println("Fehler bei der Prüfung der Spalte 'zuordnung': " + e.getMessage());
+                }
+            }
+
+            // Prüfen, ob die Spalte 'zuordnung_check' existiert, ansonsten hinzufügen
+            try {
+                stmt.execute("SELECT zuordnung_check FROM tonaufnahmen LIMIT 1");
+            } catch (SQLException e) {
+                if (e.getMessage().toLowerCase().contains("unknown column")) {
+                    System.out.println("Spalte 'zuordnung_check' fehlt in 'tonaufnahmen', wird hinzugefügt...");
+                    stmt.execute("ALTER TABLE tonaufnahmen ADD COLUMN zuordnung_check TINYINT(1) DEFAULT NULL");
+                    System.out.println("Spalte 'zuordnung_check' erfolgreich hinzugefügt.");
+                } else {
+                    System.err.println("Fehler bei der Prüfung der Spalte 'zuordnung_check': " + e.getMessage());
                 }
             }
         } catch (SQLException e) {

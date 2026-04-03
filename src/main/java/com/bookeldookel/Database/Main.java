@@ -20,7 +20,10 @@ public class Main {
         // 5. KI-gestützte Artikelzuordnung starten
         WohinDamit.ermittleZiel();
         
-        // 6. Datenbankverbindung am Ende schließen
+        // 6. Orte genehmigen
+        OrteGenehmigen.pruefeOrte();
+        
+        // 7. Datenbankverbindung am Ende schließen
         Datenbankmanager.schliesseVerbindung();
     }
 }
