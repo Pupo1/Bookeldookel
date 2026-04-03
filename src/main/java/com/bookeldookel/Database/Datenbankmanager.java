@@ -224,6 +224,23 @@ public class Datenbankmanager {
         return null;
     }
 
+    public static List<Tonaufnahme> holeAlleGeprueftenTranskriptionen() {
+        Connection conn = getConnection();
+        List<Tonaufnahme> list = new ArrayList<>();
+        if (conn == null) return list;
+
+        String selectSQL = "SELECT aufnahme_id, pfad, inhalt FROM tonaufnahmen WHERE check_status = 1 AND uebertragen IS NULL";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                list.add(new Tonaufnahme(rs.getInt("aufnahme_id"), rs.getString("pfad"), rs.getString("inhalt")));
+            }
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Laden aller geprüften Transkriptionen: " + e.getMessage());
+        }
+        return list;
+    }
+
     public static void speichereZuordnung(int aufnahmeId, String zuordnung) {
         Connection conn = getConnection();
         if (conn == null) return;
