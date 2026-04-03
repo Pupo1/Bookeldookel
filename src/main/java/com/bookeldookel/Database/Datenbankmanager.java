@@ -73,6 +73,23 @@ public class Datenbankmanager {
             stmt.execute(createTableSQL);
             stmt.execute(createArtikelTableSQL);
             System.out.println("Tabellen 'tonaufnahmen' und 'artikel' geprüft/erstellt.");
+            
+            // Prüfen, ob die Spalte 'zuordnung' existiert, ansonsten hinzufügen
+            try {
+                // Wir versuchen, eine Spalte auszuwählen.
+                // Wenn die Spalte nicht existiert, wirft die DB einen SQLException
+                stmt.execute("SELECT zuordnung FROM tonaufnahmen LIMIT 1");
+            } catch (SQLException e) {
+                // Spalte existiert vermutlich nicht, wir versuchen sie hinzuzufügen
+                if (e.getMessage().toLowerCase().contains("unknown column") || e.getMessage().toLowerCase().contains("bad field error")) {
+                    System.out.println("Spalte 'zuordnung' fehlt in 'tonaufnahmen', wird hinzugefügt...");
+                    stmt.execute("ALTER TABLE tonaufnahmen ADD COLUMN zuordnung VARCHAR(255)");
+                    System.out.println("Spalte 'zuordnung' erfolgreich hinzugefügt.");
+                } else {
+                    // Anderer Fehler, den wir nicht ignorieren sollten
+                    System.err.println("Fehler bei der Prüfung der Spalte 'zuordnung': " + e.getMessage());
+                }
+            }
         } catch (SQLException e) {
             System.err.println("Fehler beim Erstellen der Tabelle: " + e.getMessage());
         }
@@ -205,6 +222,25 @@ public class Datenbankmanager {
             System.err.println("Fehler beim Laden der ersten geprüften Transkription: " + e.getMessage());
         }
         return null;
+    }
+
+    public static void speichereZuordnung(int aufnahmeId, String zuordnung) {
+        Connection conn = getConnection();
+        if (conn == null) return;
+
+        if (zuordnung != null && zuordnung.length() > 255) {
+            zuordnung = zuordnung.substring(0, 255);
+        }
+
+        String updateSQL = "UPDATE tonaufnahmen SET zuordnung = ?, uebertragen = 1 WHERE aufnahme_id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+            pstmt.setString(1, zuordnung);
+            pstmt.setInt(2, aufnahmeId);
+            pstmt.executeUpdate();
+            System.out.println("Zuordnung '" + zuordnung + "' erfolgreich gespeichert.");
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Speichern der Zuordnung in Datenbank: " + e.getMessage());
+        }
     }
 
     public static class Tonaufnahme {

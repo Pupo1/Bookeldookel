@@ -12,7 +12,7 @@ import java.util.Arrays;
 public class WohinDamit {
     
     // Wir nutzen das gleiche Modell wie in Transkript
-    private static final String MODEL_NAME = "gemini-3.1-flash-lite-preview";
+    private static final String MODEL_NAME = "gemma-3-12b";
 
     public static void ermittleZiel() {
         System.out.println("\n=== Starte KI-gestützte Artikelzuordnung (WohinDamit) ===");
@@ -21,7 +21,7 @@ public class WohinDamit {
         Datenbankmanager.Tonaufnahme aufnahme = Datenbankmanager.getErsteGepruefteTranskription();
         
         if (aufnahme == null) {
-            System.out.println("Es wurde keine geprüfte Transkription (check_status = true) gefunden.");
+            System.out.println("Es wurde keine geprüfte Transkription (check_status = true) gefunden, die noch nicht zugeordnet wurde.");
             return;
         }
 
@@ -69,9 +69,14 @@ public class WohinDamit {
 
             String kiAntwort = response.text();
             if (kiAntwort != null) {
+                String zuordnung = kiAntwort.trim();
                 System.out.println("\n=== Ergebnis der Zuordnung ===");
-                System.out.println(kiAntwort.trim());
+                System.out.println(zuordnung);
                 System.out.println("==============================\n");
+
+                // Ergebnis in der Datenbank speichern
+                Datenbankmanager.speichereZuordnung(aufnahme.id, zuordnung);
+
             } else {
                 System.out.println("Die KI hat keine Antwort geliefert.");
             }
