@@ -17,7 +17,10 @@ public class Main {
         // 4. Transkriptionen prüfen
         TranskriptionsPruefer.pruefeTranskriptionen();
         
-        // 5. Datenbankverbindung am Ende schließen
+        // 5. KI-gestützte Artikelzuordnung starten
+        WohinDamit.ermittleZiel();
+        
+        // 6. Datenbankverbindung am Ende schließen
         Datenbankmanager.schliesseVerbindung();
     }
 }

@@ -117,11 +117,11 @@ public class TranskriptionsPruefer {
         String aktion = Main.DEVELOPER_MODUS ? "archiviert" : "gelöscht";
         System.out.println("--------------------------------------------------");
         System.out.println("Es befinden sich " + wavCount + " .wav-Datei(en) im diyrecord-Ordner.");
-        System.out.print("Sollen alle .wav-Dateien " + aktion + " werden? (ja/nein): ");
+        System.out.print("Sollen alle .wav-Dateien " + aktion + " werden? (ja/j/nein): ");
         
         String antwort = scanner.nextLine().trim();
         
-        if (antwort.equalsIgnoreCase("ja")) {
+        if (antwort.equalsIgnoreCase("ja") || antwort.equalsIgnoreCase("j")) {
             if (Main.DEVELOPER_MODUS) {
                 archiviereWavDateien(diyrecordDir);
             } else {

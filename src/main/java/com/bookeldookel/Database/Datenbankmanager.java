@@ -6,6 +6,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Datenbankmanager {
     private static Connection connection;
@@ -61,9 +63,16 @@ public class Datenbankmanager {
                 + "uebertragen TINYINT(1) DEFAULT NULL"
                 + ");";
 
+        // Tabelle artikel anlegen, falls noch nicht vorhanden
+        String createArtikelTableSQL = "CREATE TABLE IF NOT EXISTS artikel ("
+                + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                + "bezeichnung VARCHAR(255)"
+                + ");";
+
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(createTableSQL);
-            System.out.println("Tabelle 'tonaufnahmen' geprüft/erstellt.");
+            stmt.execute(createArtikelTableSQL);
+            System.out.println("Tabellen 'tonaufnahmen' und 'artikel' geprüft/erstellt.");
         } catch (SQLException e) {
             System.err.println("Fehler beim Erstellen der Tabelle: " + e.getMessage());
         }
@@ -162,6 +171,51 @@ public class Datenbankmanager {
         } else {
             // Insert
             speichereTranskription(pfad, inhalt);
+        }
+    }
+
+    public static List<String> holeAlleArtikel() {
+        Connection conn = getConnection();
+        List<String> artikelListe = new ArrayList<>();
+        if (conn == null) return artikelListe;
+
+        String selectSQL = "SELECT bezeichnung FROM artikel";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                artikelListe.add(rs.getString("bezeichnung"));
+            }
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Laden der Artikel: " + e.getMessage());
+        }
+        return artikelListe;
+    }
+
+    public static Tonaufnahme getErsteGepruefteTranskription() {
+        Connection conn = getConnection();
+        if (conn == null) return null;
+
+        String selectSQL = "SELECT aufnahme_id, pfad, inhalt FROM tonaufnahmen WHERE check_status = 1 AND uebertragen IS NULL LIMIT 1";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(selectSQL)) {
+            if (rs.next()) {
+                return new Tonaufnahme(rs.getInt("aufnahme_id"), rs.getString("pfad"), rs.getString("inhalt"));
+            }
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Laden der ersten geprüften Transkription: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public static class Tonaufnahme {
+        public int id;
+        public String pfad;
+        public String inhalt;
+
+        public Tonaufnahme(int id, String pfad, String inhalt) {
+            this.id = id;
+            this.pfad = pfad;
+            this.inhalt = inhalt;
         }
     }
 }
