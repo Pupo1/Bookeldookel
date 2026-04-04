@@ -69,38 +69,53 @@ public class Datenbankmanager {
                 + "bezeichnung VARCHAR(255)"
                 + ");";
 
+        // Tabelle schachtel anlegen, falls noch nicht vorhanden
+        String createSchachtelTableSQL = "CREATE TABLE IF NOT EXISTS schachtel ("
+                + "schachtel_id INT AUTO_INCREMENT PRIMARY KEY, "
+                + "NummerAufDerSchachtel INT NOT NULL DEFAULT 0, "
+                + "glied_id INT DEFAULT NULL, "
+                + "Tondateipfad VARCHAR(200) DEFAULT NULL, "
+                + "sort_order INT DEFAULT NULL, "
+                + "Inhalt VARCHAR(255) DEFAULT NULL"
+                + ");";
+
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(createTableSQL);
             stmt.execute(createArtikelTableSQL);
-            System.out.println("Tabellen 'tonaufnahmen' und 'artikel' geprüft/erstellt.");
+            stmt.execute(createSchachtelTableSQL);
+            System.out.println("Tabellen 'tonaufnahmen', 'artikel' und 'schachtel' geprüft/erstellt.");
             
-            // Prüfen, ob die Spalte 'zuordnung' existiert, ansonsten hinzufügen
-            try {
-                stmt.execute("SELECT zuordnung FROM tonaufnahmen LIMIT 1");
-            } catch (SQLException e) {
-                if (e.getMessage().toLowerCase().contains("unknown column")) {
+            // MetaData verwenden, um Spalten zu prüfen (vermeidet SQL-Warnungen in der Konsole)
+            java.sql.DatabaseMetaData dbm = conn.getMetaData();
+            
+            // Prüfen auf Spalte 'zuordnung'
+            try (ResultSet rs = dbm.getColumns(null, null, "tonaufnahmen", "zuordnung")) {
+                if (!rs.next()) {
                     System.out.println("Spalte 'zuordnung' fehlt in 'tonaufnahmen', wird hinzugefügt...");
                     stmt.execute("ALTER TABLE tonaufnahmen ADD COLUMN zuordnung VARCHAR(255)");
                     System.out.println("Spalte 'zuordnung' erfolgreich hinzugefügt.");
-                } else {
-                    System.err.println("Fehler bei der Prüfung der Spalte 'zuordnung': " + e.getMessage());
                 }
             }
 
-            // Prüfen, ob die Spalte 'zuordnung_check' existiert, ansonsten hinzufügen
-            try {
-                stmt.execute("SELECT zuordnung_check FROM tonaufnahmen LIMIT 1");
-            } catch (SQLException e) {
-                if (e.getMessage().toLowerCase().contains("unknown column")) {
+            // Prüfen auf Spalte 'zuordnung_check'
+            try (ResultSet rs = dbm.getColumns(null, null, "tonaufnahmen", "zuordnung_check")) {
+                if (!rs.next()) {
                     System.out.println("Spalte 'zuordnung_check' fehlt in 'tonaufnahmen', wird hinzugefügt...");
                     stmt.execute("ALTER TABLE tonaufnahmen ADD COLUMN zuordnung_check TINYINT(1) DEFAULT NULL");
                     System.out.println("Spalte 'zuordnung_check' erfolgreich hinzugefügt.");
-                } else {
-                    System.err.println("Fehler bei der Prüfung der Spalte 'zuordnung_check': " + e.getMessage());
+                }
+            }
+
+            // Prüfen auf Spalte 'Ort' in 'schachtel'
+            try (ResultSet rs = dbm.getColumns(null, null, "schachtel", "Ort")) {
+                if (!rs.next()) {
+                    System.out.println("Spalte 'Ort' fehlt in 'schachtel', wird hinzugefügt...");
+                    stmt.execute("ALTER TABLE schachtel ADD COLUMN Ort VARCHAR(400) DEFAULT NULL");
+                    System.out.println("Spalte 'Ort' erfolgreich hinzugefügt.");
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Fehler beim Erstellen der Tabelle: " + e.getMessage());
+            System.err.println("Fehler beim Erstellen der Tabelle/Spalte: " + e.getMessage());
         }
     }
 
@@ -266,6 +281,113 @@ public class Datenbankmanager {
             System.out.println("Zuordnung '" + zuordnung + "' erfolgreich gespeichert.");
         } catch (SQLException e) {
             System.err.println("Fehler beim Speichern der Zuordnung in Datenbank: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Prüft, ob eine Schachtel mit der gegebenen Nummer existiert und liefert den aktuellen Ort.
+     * @return Den aktuellen Ort oder "NOT_FOUND", falls die Schachtel nicht existiert.
+     */
+    public static String getOrtFuerSchachtel(int nummerAufSchachtel) {
+        Connection conn = getConnection();
+        if (conn == null) return "NOT_FOUND";
+
+        String selectSQL = "SELECT Ort FROM schachtel WHERE NummerAufDerSchachtel = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
+            pstmt.setInt(1, nummerAufSchachtel);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                // Kann auch null sein, wenn Schachtel existiert aber Ort null ist
+                return rs.getString("Ort");
+            }
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Abfragen der Schachtel: " + e.getMessage());
+        }
+        return "NOT_FOUND";
+    }
+
+    /**
+     * Legt eine neue Schachtel mit dem angegebenen Ort an.
+     */
+    public static void neueSchachtelAnlegen(int nummerAufSchachtel, String ort, String tondateipfad) {
+        Connection conn = getConnection();
+        if (conn == null) return;
+
+        if (ort != null && ort.length() > 400) ort = ort.substring(0, 400);
+        if (tondateipfad != null && tondateipfad.length() > 200) tondateipfad = tondateipfad.substring(0, 200);
+
+        String insertSQL = "INSERT INTO schachtel (NummerAufDerSchachtel, Ort, Tondateipfad) VALUES (?, ?, ?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
+            pstmt.setInt(1, nummerAufSchachtel);
+            pstmt.setString(2, ort);
+            pstmt.setString(3, tondateipfad);
+            pstmt.executeUpdate();
+            System.out.println("Neue Schachtel " + nummerAufSchachtel + " angelegt. Ort: " + ort);
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Anlegen der neuen Schachtel: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Setzt den Ort und den Dateipfad einer existierenden Schachtel, bei der der Ort bisher NULL war.
+     */
+    public static void updateSchachtelOrt(int nummerAufSchachtel, String neuerOrt, String tondateipfad) {
+        Connection conn = getConnection();
+        if (conn == null) return;
+
+        if (neuerOrt != null && neuerOrt.length() > 400) neuerOrt = neuerOrt.substring(0, 400);
+        if (tondateipfad != null && tondateipfad.length() > 200) tondateipfad = tondateipfad.substring(0, 200);
+
+        String updateSQL = "UPDATE schachtel SET Ort = ?, Tondateipfad = ? WHERE NummerAufDerSchachtel = ?";
+        try (PreparedStatement pstmtUpdate = conn.prepareStatement(updateSQL)) {
+            pstmtUpdate.setString(1, neuerOrt);
+            pstmtUpdate.setString(2, tondateipfad);
+            pstmtUpdate.setInt(3, nummerAufSchachtel);
+            pstmtUpdate.executeUpdate();
+            System.out.println("Ort für Schachtel " + nummerAufSchachtel + " aktualisiert auf: " + neuerOrt);
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Aktualisieren des Schachtel-Ortes: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Hängt neuen Inhalt an eine existierende Schachtel an.
+     */
+    public static void inhaltZuSchachtelHinzufuegen(int nummerAufSchachtel, String neuerInhalt) {
+        Connection conn = getConnection();
+        if (conn == null) return;
+
+        // Bisherigen Inhalt holen
+        String selectSQL = "SELECT Inhalt FROM schachtel WHERE NummerAufDerSchachtel = ?";
+        String bisherigerInhalt = null;
+        try (PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
+            pstmt.setInt(1, nummerAufSchachtel);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                bisherigerInhalt = rs.getString("Inhalt");
+            }
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Abrufen des Schachtel-Inhalts: " + e.getMessage());
+            return;
+        }
+
+        String kombinierterInhalt = (bisherigerInhalt != null && !bisherigerInhalt.trim().isEmpty()) 
+                                    ? bisherigerInhalt + " | " + neuerInhalt 
+                                    : neuerInhalt;
+        
+        if (kombinierterInhalt.length() > 255) {
+            kombinierterInhalt = kombinierterInhalt.substring(0, 255);
+        }
+
+        String updateSQL = "UPDATE schachtel SET Inhalt = ? WHERE NummerAufDerSchachtel = ?";
+        try (PreparedStatement pstmtUpdate = conn.prepareStatement(updateSQL)) {
+            pstmtUpdate.setString(1, kombinierterInhalt);
+            pstmtUpdate.setInt(2, nummerAufSchachtel);
+            pstmtUpdate.executeUpdate();
+            System.out.println("Inhalt zur Schachtel " + nummerAufSchachtel + " hinzugefügt.");
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Aktualisieren des Schachtel-Inhalts: " + e.getMessage());
         }
     }
 
