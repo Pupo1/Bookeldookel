@@ -9,18 +9,21 @@ public class Bookiiconnection {
     public static void checkAndTransfer() {
         Path resourcesDir = Paths.get("src", "main", "resources");
         Path targetDir = resourcesDir.resolve("diyrecord");
+        Path mp3TargetDir = resourcesDir.resolve("mp3");
 
         // 0. Ordner anlegen
         try {
             if (!Files.exists(targetDir)) {
                 Files.createDirectories(targetDir);
             }
+            if (!Files.exists(mp3TargetDir)) {
+                Files.createDirectories(mp3TargetDir);
+            }
         } catch (IOException e) {
             System.err.println("Fehler bei der Vorbereitung des Zielordners: " + e.getMessage());
         }
 
         Path bookiiDrive = null;
-        System.out.println("Suche nach BOOKII_APP...");
 
         int versuche = 0;
         // Im Developer-Modus nur 1 Versuch, sonst 10
@@ -101,6 +104,49 @@ public class Bookiiconnection {
 
             if (!foundAnyDiyRecordFolder) {
                 System.out.println("Der Ordner 'diyrecord' wurde auf keinem Laufwerk gefunden.");
+            }
+
+            // 2b. Alle Laufwerke nach dem Ordner "mp3" durchsuchen und .wav-Dateien verschieben.
+            System.out.println("Durchsuche nun alle Laufwerke nach 'mp3'...");
+            boolean foundAnyMp3Folder = false;
+
+            for (Path root : FileSystems.getDefault().getRootDirectories()) {
+                Path mp3SourceDir = root.resolve("mp3");
+
+                if (Files.exists(mp3SourceDir) && Files.isDirectory(mp3SourceDir)) {
+                    foundAnyMp3Folder = true;
+                    System.out.println("Ordner 'mp3' gefunden auf Laufwerk: " + root);
+
+                    try {
+                        try (Stream<Path> paths = Files.list(mp3SourceDir)) {
+                            long count = 0;
+                            for (Path source : (Iterable<Path>) paths::iterator) {
+                                if (source.toString().toLowerCase().endsWith(".wav")) {
+                                    try {
+                                        Path target = mp3TargetDir.resolve(source.getFileName());
+                                        Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+                                        System.out.println("  -> Verschoben: " + source.getFileName());
+                                        count++;
+                                    } catch (IOException e) {
+                                        System.err.println("  -> Fehler beim Verschieben von " + source.getFileName() + ": " + e.getMessage());
+                                    }
+                                }
+                            }
+
+                            if (count == 0) {
+                                System.out.println("  -> Keine .wav-Dateien in diesem Ordner gefunden.");
+                            } else {
+                                System.out.println("  -> " + count + " .wav-Dateien wurden erfolgreich nach resources/mp3 verschoben.");
+                            }
+                        }
+                    } catch (IOException e) {
+                        System.err.println("Fehler beim Zugriff auf Verzeichnis: " + mp3SourceDir + " - " + e.getMessage());
+                    }
+                }
+            }
+
+            if (!foundAnyMp3Folder) {
+                System.out.println("Der Ordner 'mp3' wurde auf keinem Laufwerk gefunden.");
             }
 
             // 3. Laufwerk "BOOKII_APP" (bookiiDrive) auswerfen
