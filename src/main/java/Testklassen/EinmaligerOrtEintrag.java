@@ -85,6 +85,7 @@ public class EinmaligerOrtEintrag {
             Matcher zahlMatcher = zahlPattern.matcher(transkription);
 
             if (inhaltMatcher.find()) {
+                // Es handelt sich um eine Inhaltsangabe
                 String zahlStr = inhaltMatcher.group(1);
                 int nummer = Integer.parseInt(zahlStr);
                 int endeIndex = inhaltMatcher.end(1);
@@ -96,6 +97,7 @@ public class EinmaligerOrtEintrag {
                 verarbeiteDatenbankInhalt(nummer, restText, wavFile, archivDir);
 
             } else if (zahlMatcher.find()) {
+                // Es handelt sich um eine Ort-Registrierung (nur Zahl am Anfang)
                 String zahlStr = zahlMatcher.group(1);
                 int nummer = Integer.parseInt(zahlStr);
                 int endeIndex = zahlMatcher.end(1);
@@ -110,7 +112,7 @@ public class EinmaligerOrtEintrag {
                 if (bestaetigteWerte != null) {
                     int endgueltigeNummer = bestaetigteWerte[0];
                     String endgueltigerOrt = bestaetigteWerte[1] == -1 ? restText : 
-                            holeKorrigiertenOrt(bestaetigteWerte);
+                            holeKorrigiertenOrt();
                     
                     verarbeiteDatenbankOrt(endgueltigeNummer, endgueltigerOrt, wavFile, archivDir);
                 } else {
@@ -200,7 +202,7 @@ public class EinmaligerOrtEintrag {
     /**
      * Holt den korrigierten Ort aus dem letzten Durchlauf.
      */
-    private static String holeKorrigiertenOrt(int[] werte) {
+    private static String holeKorrigiertenOrt() {
         return letzterKorrigierterOrt;
     }
 
