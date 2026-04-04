@@ -11,20 +11,20 @@ public class Main {
         // 2. Bookii-Stift verbinden und Dateien übertragen
         Bookiiconnection.checkAndTransfer();
 
-        // 3. Alle verschobenen Dateien aus diyrecord transkribieren und in die DB speichern
+        // 3. Neue Logik: mp3-Ordner für Schachteln verarbeiten
+        OrtEintragen.verarbeiteMp3Ordner();
+
+        // 4. Alle verschobenen Dateien aus diyrecord transkribieren und in die DB speichern
         Transkript.transkribiereVerzeichnis();
         
-        // 4. Transkriptionen prüfen
+        // 5. Transkriptionen prüfen
         TranskriptionsPruefer.pruefeTranskriptionen();
         
-        // 5. KI-gestützte Artikelzuordnung starten
+        // 6. KI-gestützte Artikelzuordnung starten
         WohinDamit.ermittleZiel();
         
-        // 6. Orte genehmigen
+        // 7. Orte genehmigen
         OrteGenehmigen.pruefeOrte();
-        
-        // 7. Neue Logik: mp3-Ordner für Schachteln verarbeiten
-        OrtEintragen.verarbeiteMp3Ordner();
         
         // 8. Datenbankverbindung am Ende schließen
         Datenbankmanager.schliesseVerbindung();
