@@ -15,8 +15,8 @@ import java.util.stream.Stream;
 
 public class Transkript {
 
-    // Das Modell, das wir verwenden wollen
-    private static final String MODEL_NAME = "gemini-3.1-flash-lite-preview";
+    // Für reine Audio-Transkription verwenden wir das schnellere und zuverlässigere 1.5-Flash Modell
+    private static final String MODEL_NAME = "gemini-1.5-flash"; 
 
     /**
      * Stellt sicher, dass die Datenbank-Tabelle existiert.
@@ -59,7 +59,7 @@ public class Transkript {
                          if (ergebnis != null && !isErrorText(ergebnis)) {
                              try {
                                  // Warte 16 Sekunden (13 Sekunden + 3 Sekunden extra) für mehr Puffer
-                                 Thread.sleep(4500);
+                                 Thread.sleep(16000); 
                              } catch (InterruptedException e) {
                                  Thread.currentThread().interrupt();
                              }
@@ -110,7 +110,7 @@ public class Transkript {
 
             // Den Text-Prompt erstellen
             Part textPart = Part.builder()
-                    .text("Bitte transkribiere diese Audioaufnahme so exakt wie möglich. Schreibe nur den erkannten Text, keine weiteren Kommentare. Es handelt sich um Objekte, die aufgeräumt werden sollen. Wenn in dem Text kein Objekt vorkommt, das man aufräumen kann, dann gib entweder ein Objekt zurück, das so ähnlich klingt die der transkribierte Text, oder gibt einfach nur das Wort FEHLER zurück.")
+                    .text("Bitte transkribiere diese Audioaufnahme so exakt wie möglich. Schreibe nur den erkannten Text, keine weiteren Kommentare.")
                     .build();
 
             // Den Content zusammenstellen

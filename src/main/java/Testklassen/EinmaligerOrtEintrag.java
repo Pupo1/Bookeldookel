@@ -21,7 +21,8 @@ import java.util.stream.Stream;
 
 public class EinmaligerOrtEintrag {
 
-    private static final String MODEL_NAME = "gemma-3-12b-it";
+    // Für Audio-Transkription verwenden wir Gemini 1.5 Flash (schnell und nativ Audio-fähig)
+    private static final String MODEL_NAME = "gemini-2.5-flash-native-audio-preview-12-2025";
 
     public static void main(String[] args) {
         System.out.println("\n=== Starte Verarbeitung einer einzelnen .wav-Datei aus dem mp3-Ordner (Testklasse) ===");
@@ -48,7 +49,7 @@ public class EinmaligerOrtEintrag {
                     .filter(p -> p.toString().toLowerCase().endsWith(".wav") && !Files.isDirectory(p))
                     .findFirst();
 
-            if (!firstWavOpt.isPresent()) {
+            if (firstWavOpt.isEmpty()) {
                 System.out.println("Keine .wav-Dateien im Ordner 'mp3' gefunden.");
                 return;
             }
@@ -59,33 +60,48 @@ public class EinmaligerOrtEintrag {
             // 1. Transkribieren
             String transkription = transkribiere(wavFile);
 
-            if (transkription == null || isErrorText(transkription)) {
-                System.out.println("Transkription fehlgeschlagen oder ungültig. Abbruch.");
+            if (transkription == null) {
+                System.out.println("Transkription fehlgeschlagen (Ergebnis ist null). Abbruch.");
+                return;
+            } else if (isErrorText(transkription)) {
+                System.out.println("Transkription ungültig, da sie als Fehlertext erkannt wurde.");
+                System.out.println("Erkannter Text war: " + transkription);
                 return;
             }
 
             System.out.println("Erkannter Text: " + transkription);
 
-            // 2. Prüfen, ob eine Zahl am Anfang steht
-            Pattern pattern = Pattern.compile("^\\D*(\\d+)");
-            Matcher matcher = pattern.matcher(transkription);
+            // Initialisiere die Datenbankverbindung und -struktur, falls noch nicht geschehen
+            Datenbankmanager.erstelleTabelleFallsNichtExistent();
 
-            if (matcher.find()) {
-                String zahlStr = matcher.group(1);
+            // 2. Prüfen, ob "Inhalt von <Zahl>" oder nur eine "<Zahl>" am Anfang steht
+            Pattern inhaltPattern = Pattern.compile("(?i)^\\D*inhalt\\s+von\\s+(\\d+)");
+            Matcher inhaltMatcher = inhaltPattern.matcher(transkription);
+            
+            Pattern zahlPattern = Pattern.compile("^\\D*(\\d+)");
+            Matcher zahlMatcher = zahlPattern.matcher(transkription);
+
+            if (inhaltMatcher.find()) {
+                String zahlStr = inhaltMatcher.group(1);
                 int nummer = Integer.parseInt(zahlStr);
-
-                // Den Rest des Textes nach der Zahl extrahieren
-                int endeIndexZahl = matcher.end(1);
-                String restText = transkription.substring(endeIndexZahl).trim();
-
-                System.out.println("Nummer gefunden: " + nummer);
-                System.out.println("Restlicher Text: " + restText);
-
-                // 3. In Datenbank prüfen / eintragen
-                // Initialisiere die Datenbankverbindung und -struktur, falls noch nicht geschehen
-                Datenbankmanager.erstelleTabelleFallsNichtExistent();
+                int endeIndex = inhaltMatcher.end(1);
+                String restText = transkription.substring(endeIndex).trim();
                 
-                verarbeiteDatenbank(nummer, restText, wavFile, archivDir);
+                System.out.println("Inhaltsangabe für Schachtel " + nummer + " erkannt.");
+                System.out.println("Neuer Inhalt: " + restText);
+                
+                verarbeiteDatenbankInhalt(nummer, restText, wavFile, archivDir);
+
+            } else if (zahlMatcher.find()) {
+                String zahlStr = zahlMatcher.group(1);
+                int nummer = Integer.parseInt(zahlStr);
+                int endeIndex = zahlMatcher.end(1);
+                String restText = transkription.substring(endeIndex).trim();
+
+                System.out.println("Ort-Registrierung für Schachtel " + nummer + " erkannt.");
+                System.out.println("Ort: " + restText);
+
+                verarbeiteDatenbankOrt(nummer, restText, wavFile, archivDir);
 
             } else {
                 System.err.println("FEHLER: Keine Zahl am Anfang des Textes gefunden. Datei wird ignoriert.");
@@ -98,44 +114,49 @@ public class EinmaligerOrtEintrag {
         System.out.println("\n=== Verarbeitung beendet ===");
     }
 
-    private static void verarbeiteDatenbank(int nummer, String text, Path originalDatei, Path archivDir) {
-        String ort = Datenbankmanager.getOrtFuerSchachtel(nummer);
+    private static void verarbeiteDatenbankOrt(int nummer, String ort, Path originalDatei, Path archivDir) {
+        String existierenderOrt = Datenbankmanager.getOrtFuerSchachtel(nummer);
 
         try {
-            if ("NOT_FOUND".equals(ort)) {
+            Path zielPfad = findeEindeutigenZielpfad(archivDir, originalDatei.getFileName().toString());
+            String tondateipfad = zielPfad.toAbsolutePath().toString().replace("\\", "/");
+
+            if ("NOT_FOUND".equals(existierenderOrt)) {
                 // Schachtel existiert noch nicht -> Neu anlegen mit Ort
-                Path zielPfad = findeEindeutigenZielpfad(archivDir, originalDatei.getFileName().toString());
-                String tondateipfad = zielPfad.toAbsolutePath().toString().replace("\\", "/");
-
-                Datenbankmanager.neueSchachtelAnlegen(nummer, text, tondateipfad);
-
-                // Datei ins Archiv verschieben
-                Files.move(originalDatei, zielPfad, StandardCopyOption.REPLACE_EXISTING);
-                System.out.println("Datei archiviert nach: " + zielPfad);
-
-            } else if (ort == null || ort.trim().isEmpty()) {
-                // Schachtel existiert, aber Spalte Ort ist noch leer.
-                System.out.println("Aktualisiere Ort für Schachtel " + nummer + ".");
-
-                Path zielPfad = findeEindeutigenZielpfad(archivDir, originalDatei.getFileName().toString());
-                String tondateipfad = zielPfad.toAbsolutePath().toString().replace("\\", "/");
-
-                Datenbankmanager.updateSchachtelOrt(nummer, text, tondateipfad);
-
-                // Datei ins Archiv verschieben
-                Files.move(originalDatei, zielPfad, StandardCopyOption.REPLACE_EXISTING);
-                System.out.println("Datei archiviert nach: " + zielPfad);
-
+                Datenbankmanager.neueSchachtelAnlegen(nummer, ort, tondateipfad);
             } else {
-                // Ort existiert bereits -> Inhalt hinzufügen
-                System.out.println("Schachtel " + nummer + " hat bereits den Ort: '" + ort + "'. Füge Inhalt hinzu.");
-                Datenbankmanager.inhaltZuSchachtelHinzufuegen(nummer, text);
-
-                // Da es sich um Inhalt handelte, wird der Dateiname NICHT in die DB eingetragen.
-                Path zielPfad = findeEindeutigenZielpfad(archivDir, originalDatei.getFileName().toString());
-                Files.move(originalDatei, zielPfad, StandardCopyOption.REPLACE_EXISTING);
-                System.out.println("Datei (Inhalt) archiviert nach: " + zielPfad);
+                // Schachtel existiert. Neue Anforderung: Immer überschreiben/aktualisieren.
+                System.out.println("Schachtel " + nummer + " existiert bereits. Ort wird überschrieben/aktualisiert.");
+                Datenbankmanager.updateSchachtelOrt(nummer, ort, tondateipfad);
             }
+            
+            // Datei ins Archiv verschieben
+            Files.move(originalDatei, zielPfad, StandardCopyOption.REPLACE_EXISTING);
+            System.out.println("Datei (Ort-Registrierung) archiviert nach: " + zielPfad);
+            
+        } catch (IOException e) {
+            System.err.println("Fehler beim Verschieben der Datei ins Archiv: " + e.getMessage());
+        }
+    }
+
+    private static void verarbeiteDatenbankInhalt(int nummer, String neuerInhalt, Path originalDatei, Path archivDir) {
+        String existierenderOrt = Datenbankmanager.getOrtFuerSchachtel(nummer);
+        
+        if ("NOT_FOUND".equals(existierenderOrt)) {
+            // Die Schachtel existiert noch gar nicht. Wir können sie anlegen, Ort bleibt null, Inhalt wird befüllt.
+            System.out.println("Schachtel " + nummer + " existiert noch nicht. Wird angelegt.");
+            Datenbankmanager.neueSchachtelAnlegen(nummer, null, null);
+        }
+        
+        // Inhalt hinzufügen
+        Datenbankmanager.inhaltZuSchachtelHinzufuegen(nummer, neuerInhalt);
+        
+        try {
+            // Da es sich um Inhalt handelte, wird der Dateiname NICHT in die DB eingetragen.
+            // Die Datei wird aber laut Anforderung trotzdem ins Archiv verschoben.
+            Path zielPfad = findeEindeutigenZielpfad(archivDir, originalDatei.getFileName().toString());
+            Files.move(originalDatei, zielPfad, StandardCopyOption.REPLACE_EXISTING);
+            System.out.println("Datei (Inhalt) archiviert nach: " + zielPfad);
         } catch (IOException e) {
             System.err.println("Fehler beim Verschieben der Datei ins Archiv: " + e.getMessage());
         }
@@ -166,6 +187,7 @@ public class EinmaligerOrtEintrag {
 
     private static String transkribiere(Path audioFile) {
         String apiKey = System.getenv("BOOKELDOOKEL_API_KEY");
+        apiKey="AIzaSyArTvy_FXKI0ykbSXC09bd848C5Vdoslw4";
         if (apiKey == null || apiKey.trim().isEmpty()) {
             System.err.println("FEHLER: API Key fehlt.");
             return null;
