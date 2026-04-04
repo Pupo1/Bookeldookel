@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
 public class OrtEintragen {
 
     // Für Audio-Transkription verwenden wir Gemini 1.5 Flash (schnell und nativ Audio-fähig)
-    private static final String MODEL_NAME = "gemini-1.5-flash";
+    private static final String MODEL_NAME = "gemini-2.5-flash";
 
     public static void verarbeiteMp3Ordner() {
         System.out.println("\n=== Starte Verarbeitung von .wav-Dateien aus dem mp3-Ordner (OrtEintragen) ===");

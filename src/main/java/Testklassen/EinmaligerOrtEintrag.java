@@ -7,7 +7,9 @@ import com.google.genai.types.GenerateContentConfig;
 import com.google.genai.types.GenerateContentResponse;
 import com.google.genai.types.Part;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -21,8 +23,9 @@ import java.util.stream.Stream;
 
 public class EinmaligerOrtEintrag {
 
-    // Für Audio-Transkription verwenden wir Gemini 1.5 Flash (schnell und nativ Audio-fähig)
+    // Für Audio-Transkription verwenden wir Gemini 2.5 Flash
     private static final String MODEL_NAME = "gemini-2.5-flash";
+    private static final BufferedReader KONSOLE = new BufferedReader(new InputStreamReader(System.in));
 
     public static void main(String[] args) {
         System.out.println("\n=== Starte Verarbeitung einer einzelnen .wav-Datei aus dem mp3-Ordner (Testklasse) ===");
@@ -101,7 +104,18 @@ public class EinmaligerOrtEintrag {
                 System.out.println("Ort-Registrierung für Schachtel " + nummer + " erkannt.");
                 System.out.println("Ort: " + restText);
 
-                verarbeiteDatenbankOrt(nummer, restText, wavFile, archivDir);
+                // Sicherheitsabfrage mit Korrekturmöglichkeit
+                int[] bestaetigteWerte = frageBenutzerNachBestaetigung(nummer, restText);
+                
+                if (bestaetigteWerte != null) {
+                    int endgueltigeNummer = bestaetigteWerte[0];
+                    String endgueltigerOrt = bestaetigteWerte[1] == -1 ? restText : 
+                            holeKorrigiertenOrt(bestaetigteWerte);
+                    
+                    verarbeiteDatenbankOrt(endgueltigeNummer, endgueltigerOrt, wavFile, archivDir);
+                } else {
+                    System.out.println("Eintrag wurde vom Benutzer abgebrochen.");
+                }
 
             } else {
                 System.err.println("FEHLER: Keine Zahl am Anfang des Textes gefunden. Datei wird ignoriert.");
@@ -112,6 +126,82 @@ public class EinmaligerOrtEintrag {
         }
 
         System.out.println("\n=== Verarbeitung beendet ===");
+    }
+
+    // Speichert den korrigierten Ort zwischen
+    private static String letzterKorrigierterOrt = null;
+
+    /**
+     * Fragt den Benutzer nach Bestätigung oder Korrektur der erkannten Daten.
+     * 
+     * @param vorgeschlageneNummer Die aus der Transkription erkannte Schachtelnummer
+     * @param vorgeschlagenerOrt Der aus der Transkription erkannte Ort
+     * @return Array mit [nummer, flag] wobei flag=-1 bedeutet "Ort unverändert", oder null bei Abbruch
+     */
+    private static int[] frageBenutzerNachBestaetigung(int vorgeschlageneNummer, String vorgeschlagenerOrt) {
+        System.out.println();
+        System.out.println("════════════════════════════════════════════════════════════════");
+        System.out.println("                    SICHERHEITSABFRAGE                          ");
+        System.out.println("════════════════════════════════════════════════════════════════");
+        System.out.println("  Schachtel-Nr: " + vorgeschlageneNummer);
+        System.out.println("  Ort: " + vorgeschlagenerOrt);
+        System.out.println("────────────────────────────────────────────────────────────────");
+        System.out.println("  [Enter] = Bestaetigen");
+        System.out.println("  Korrektur eingeben: z.B. \"1012 Sicherungskasten\"");
+        System.out.println("  \"abbruch\" = Vorgang abbrechen");
+        System.out.println("════════════════════════════════════════════════════════════════");
+        System.out.print("Ihre Eingabe: ");
+
+        try {
+            String eingabe = KONSOLE.readLine();
+            
+            if (eingabe == null) {
+                return null;
+            }
+            
+            eingabe = eingabe.trim();
+            
+            // Leere Eingabe = Bestätigung des Vorschlags
+            if (eingabe.isEmpty()) {
+                System.out.println("Vorschlag bestaetigt.");
+                letzterKorrigierterOrt = vorgeschlagenerOrt;
+                return new int[]{vorgeschlageneNummer, -1};
+            }
+            
+            // Abbruch
+            if (eingabe.equalsIgnoreCase("abbruch") || eingabe.equalsIgnoreCase("abbrechen")) {
+                return null;
+            }
+            
+            // Korrektur parsen: "1012 Sicherungskasten" -> Nummer=1012, Ort="Sicherungskasten"
+            Pattern korrekturPattern = Pattern.compile("^(\\d+)\\s+(.+)$");
+            Matcher korrekturMatcher = korrekturPattern.matcher(eingabe);
+            
+            if (korrekturMatcher.find()) {
+                int korrigierteNummer = Integer.parseInt(korrekturMatcher.group(1));
+                String korrigierterOrt = korrekturMatcher.group(2).trim();
+                
+                System.out.println("Korrektur uebernommen: Schachtel " + korrigierteNummer + ", Ort: " + korrigierterOrt);
+                letzterKorrigierterOrt = korrigierterOrt;
+                return new int[]{korrigierteNummer, 1};
+            } else {
+                System.err.println("Ungueltiges Eingabeformat. Erwartet: \"<Nummer> <Ort>\" (z.B. \"1012 Sicherungskasten\")");
+                System.out.println("Verwende urspruenglichen Vorschlag.");
+                letzterKorrigierterOrt = vorgeschlagenerOrt;
+                return new int[]{vorgeschlageneNummer, -1};
+            }
+            
+        } catch (IOException e) {
+            System.err.println("Fehler beim Lesen der Eingabe: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Holt den korrigierten Ort aus dem letzten Durchlauf.
+     */
+    private static String holeKorrigiertenOrt(int[] werte) {
+        return letzterKorrigierterOrt;
     }
 
     private static void verarbeiteDatenbankOrt(int nummer, String ort, Path originalDatei, Path archivDir) {
@@ -126,7 +216,7 @@ public class EinmaligerOrtEintrag {
                 Datenbankmanager.neueSchachtelAnlegen(nummer, ort, tondateipfad);
             } else {
                 // Schachtel existiert. Neue Anforderung: Immer überschreiben/aktualisieren.
-                System.out.println("Schachtel " + nummer + " existiert bereits. Ort wird überschrieben/aktualisiert.");
+                System.out.println("Schachtel " + nummer + " existiert bereits. Ort wird ueberschrieben/aktualisiert.");
                 Datenbankmanager.updateSchachtelOrt(nummer, ort, tondateipfad);
             }
             
@@ -187,7 +277,6 @@ public class EinmaligerOrtEintrag {
 
     private static String transkribiere(Path audioFile) {
         String apiKey = System.getenv("BOOKELDOOKEL_API_KEY");
-        apiKey="AIzaSyArTvy_FXKI0ykbSXC09bd848C5Vdoslw4";
         if (apiKey == null || apiKey.trim().isEmpty()) {
             System.err.println("FEHLER: API Key fehlt.");
             return null;
