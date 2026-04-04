@@ -22,7 +22,7 @@ import java.util.stream.Stream;
 public class EinmaligerOrtEintrag {
 
     // Für Audio-Transkription verwenden wir Gemini 1.5 Flash (schnell und nativ Audio-fähig)
-    private static final String MODEL_NAME = "gemini-2.5-flash-native-audio-preview-12-2025";
+    private static final String MODEL_NAME = "gemini-2.5-flash";
 
     public static void main(String[] args) {
         System.out.println("\n=== Starte Verarbeitung einer einzelnen .wav-Datei aus dem mp3-Ordner (Testklasse) ===");
