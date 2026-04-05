@@ -23,8 +23,8 @@ import java.util.regex.Pattern;
 
 public class OrtEintragen {
 
-    // Für Audio-Transkription verwenden wir Gemini 2.5 Flash
-    private static final String MODEL_NAME = "gemini-2.5-flash";
+    // Für Audio-Transkription verwenden wir Gemini 1.5 Flash
+    private static final String MODEL_NAME = "gemini-1.5-flash";
     private static final BufferedReader KONSOLE = new BufferedReader(new InputStreamReader(System.in));
 
     // Interne Klasse zum Speichern der Ergebnisse vor der Bestätigung
@@ -81,6 +81,17 @@ public class OrtEintragen {
                      } else if (isErrorText(transkription)) {
                          System.out.println("Transkription ungültig, da sie als Fehlertext erkannt wurde.");
                          System.out.println("Erkannter Text war: " + transkription);
+                         System.out.println("Möchtest du diese fehlerhafte Datei ins Archiv verschieben und ignorieren? (ja/nein)");
+                         try {
+                             String antw = KONSOLE.readLine().trim().toLowerCase();
+                             if (antw.equals("ja") || antw.equals("j")) {
+                                 ignoriereDatei(wavFile, archivDir);
+                             } else {
+                                 System.out.println("Datei bleibt im mp3-Ordner.");
+                             }
+                         } catch (IOException e) {
+                             System.err.println("Fehler bei der Eingabe: " + e.getMessage());
+                         }
                          return;
                      }
 
@@ -111,7 +122,18 @@ public class OrtEintragen {
                          ergebnisse.add(new TranskriptionsErgebnis(wavFile, nummer, restText, false));
 
                      } else {
-                         System.err.println("FEHLER: Keine Zahl am Anfang des Textes gefunden. Datei wird übersprungen.");
+                         System.err.println("FEHLER: Keine Zahl am Anfang des Textes gefunden.");
+                         System.out.println("Möchtest du diese fehlerhafte Datei ins Archiv verschieben und ignorieren? (ja/nein)");
+                         try {
+                             String antw = KONSOLE.readLine().trim().toLowerCase();
+                             if (antw.equals("ja") || antw.equals("j")) {
+                                 ignoriereDatei(wavFile, archivDir);
+                             } else {
+                                 System.out.println("Datei bleibt im mp3-Ordner.");
+                             }
+                         } catch (IOException e) {
+                             System.err.println("Fehler bei der Eingabe: " + e.getMessage());
+                         }
                      }
                      
                      // Kurze Pause, um Rate-Limits bei vielen Dateien zu vermeiden
@@ -343,7 +365,7 @@ public class OrtEintragen {
         String apiKey = System.getenv("BOOKELDOOKEL_API_KEY");
         if (apiKey == null || apiKey.trim().isEmpty()) {
             System.err.println("FEHLER: API Key fehlt.");
-            return null;
+            return "Fehler: API-Key fehlt.";
         }
 
         try (Client client = Client.builder().apiKey(apiKey).build()) {
@@ -371,11 +393,11 @@ public class OrtEintragen {
                 GenerateContentConfig.builder().build()
             );
             
-            return response.text() != null ? response.text().trim() : null;
+            return response.text() != null ? response.text().trim() : "Fehler: Leere API Antwort.";
 
         } catch (Exception e) {
             System.err.println("Fehler bei der KI-Anfrage: " + e.getMessage());
-            return null;
+            return "Fehler: " + e.getMessage();
         }
     }
 
@@ -386,6 +408,8 @@ public class OrtEintragen {
                lowerText.contains("fehler") || 
                lowerText.contains("429 too many requests") ||
                lowerText.contains("quota exceeded") ||
-               lowerText.contains("rate limit");
+               lowerText.contains("rate limit") ||
+               lowerText.contains("404 not found") ||
+               lowerText.contains("is not found");
     }
 }

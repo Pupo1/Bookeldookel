@@ -15,8 +15,8 @@ import java.util.stream.Stream;
 
 public class Transkript {
 
-    // Für reine Audio-Transkription verwenden wir das schnellere und zuverlässigere 1.5-Flash Modell
-    private static final String MODEL_NAME = "gemini-1.5-flash"; 
+    // Das Modell, das wir verwenden wollen
+    private static final String MODEL_NAME = "gemini-1.5-flash";
 
     /**
      * Stellt sicher, dass die Datenbank-Tabelle existiert.
@@ -53,16 +53,22 @@ public class Transkript {
                      } else {
                          // Muss (neu) transkribiert werden
                          String ergebnis = transkribiere(wavFile);
-                         System.out.println("Verarbeitung für " + wavFile.getFileName() + " abgeschlossen.");
                          
-                         // Nur warten, wenn das Ergebnis kein Fehler war
+                         // Wenn ein Fehler auftritt, wird ergebnis als Fehlertext zurückgegeben 
+                         // (oder contains("error") / contains("quota exceeded") im isErrorText true ergeben)
+                         // Die Verarbeitung wird dann abgebrochen und nicht gewartet.
+                         
                          if (ergebnis != null && !isErrorText(ergebnis)) {
+                             System.out.println("Verarbeitung für " + wavFile.getFileName() + " abgeschlossen.");
                              try {
                                  // Warte 16 Sekunden (13 Sekunden + 3 Sekunden extra) für mehr Puffer
                                  Thread.sleep(16000); 
                              } catch (InterruptedException e) {
                                  Thread.currentThread().interrupt();
                              }
+                         } else {
+                             System.out.println("Verarbeitung für " + wavFile.getFileName() + " abgebrochen wegen eines Fehlers.");
+                             Main.fehlerAufgetreten = true; // Markiere global, dass es Fehler gab
                          }
                      }
                  });

@@ -163,10 +163,18 @@ public class WohinDamit {
                     Datenbankmanager.speichereZuordnung(aufnahme.id, "NEUER_ARTIKEL");
                 }
                 
+                // Wir haben die Funktionalität so belassen, dass wir auch in der Liste der Artikel schauen,
+                // wenn das Suchen nach dem Schachtelinhalt kein Ergebnis liefert. Und wir haben
+                // die Sleep-Pausen zwischen den KI-Aufrufen erhalten, da sonst Rate-Limits greifen.
+                
                 // Delay vor dem nächsten Schleifendurchlauf (nächste Aufnahme)
                 if (i < aufnahmen.size() - 1) {
                     System.out.println("Warte 16 Sekunden auf nächste Aufnahme...");
-                    Thread.sleep(16000);
+                    try {
+                        Thread.sleep(16000);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
                 }
             }
 

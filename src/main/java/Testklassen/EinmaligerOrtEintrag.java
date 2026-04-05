@@ -23,8 +23,8 @@ import java.util.stream.Stream;
 
 public class EinmaligerOrtEintrag {
 
-    // Für Audio-Transkription verwenden wir Gemini 2.5 Flash
-    private static final String MODEL_NAME = "gemini-2.5-flash";
+    // Für Audio-Transkription verwenden wir Gemini 1.5 Flash
+    private static final String MODEL_NAME = "gemini-1.5-flash";
     private static final BufferedReader KONSOLE = new BufferedReader(new InputStreamReader(System.in));
 
     public static void main(String[] args) {
@@ -67,8 +67,18 @@ public class EinmaligerOrtEintrag {
                 System.out.println("Transkription fehlgeschlagen (Ergebnis ist null). Abbruch.");
                 return;
             } else if (isErrorText(transkription)) {
+                // HIER: Eine fehlerhafte Transkription (wie 429 oder 404) soll nun als
+                // "fehlerhafte .wav-Datei archivieren" gehandhabt werden, wenn der Nutzer zustimmt.
                 System.out.println("Transkription ungültig, da sie als Fehlertext erkannt wurde.");
                 System.out.println("Erkannter Text war: " + transkription);
+                
+                System.out.println("Möchtest du diese fehlerhafte Datei ins Archiv verschieben und ignorieren? (ja/nein)");
+                String antw = KONSOLE.readLine().trim().toLowerCase();
+                if (antw.equals("ja") || antw.equals("j")) {
+                    ignoriereDatei(wavFile, archivDir);
+                } else {
+                    System.out.println("Datei bleibt im mp3-Ordner.");
+                }
                 return;
             }
 
@@ -85,6 +95,7 @@ public class EinmaligerOrtEintrag {
             Matcher zahlMatcher = zahlPattern.matcher(transkription);
 
             if (inhaltMatcher.find()) {
+                // Es handelt sich um eine Inhaltsangabe
                 String zahlStr = inhaltMatcher.group(1);
                 int nummer = Integer.parseInt(zahlStr);
                 int endeIndex = inhaltMatcher.end(1);
@@ -96,6 +107,7 @@ public class EinmaligerOrtEintrag {
                 verarbeiteDatenbankInhalt(nummer, restText, wavFile, archivDir);
 
             } else if (zahlMatcher.find()) {
+                // Es handelt sich um eine Ort-Registrierung (nur Zahl am Anfang)
                 String zahlStr = zahlMatcher.group(1);
                 int nummer = Integer.parseInt(zahlStr);
                 int endeIndex = zahlMatcher.end(1);
@@ -121,11 +133,18 @@ public class EinmaligerOrtEintrag {
                 }
 
             } else {
-                System.err.println("FEHLER: Keine Zahl am Anfang des Textes gefunden. Datei wird ignoriert.");
+                System.err.println("FEHLER: Keine Zahl am Anfang des Textes gefunden.");
+                System.out.println("Möchtest du diese fehlerhafte Datei ins Archiv verschieben und ignorieren? (ja/nein)");
+                String antw = KONSOLE.readLine().trim().toLowerCase();
+                if (antw.equals("ja") || antw.equals("j")) {
+                    ignoriereDatei(wavFile, archivDir);
+                } else {
+                    System.out.println("Datei bleibt im mp3-Ordner.");
+                }
             }
 
         } catch (IOException e) {
-            System.err.println("Fehler beim Zugriff auf mp3-Ordner: " + e.getMessage());
+            System.err.println("Fehler beim Zugriff auf mp3-Ordner oder bei der Eingabe: " + e.getMessage());
         }
 
         System.out.println("\n=== Verarbeitung beendet ===");
@@ -303,7 +322,7 @@ public class EinmaligerOrtEintrag {
         String apiKey = System.getenv("BOOKELDOOKEL_API_KEY");
         if (apiKey == null || apiKey.trim().isEmpty()) {
             System.err.println("FEHLER: API Key fehlt.");
-            return null;
+            return "Fehler: API-Key fehlt.";
         }
 
         try (Client client = Client.builder().apiKey(apiKey).build()) {
@@ -331,11 +350,11 @@ public class EinmaligerOrtEintrag {
                     GenerateContentConfig.builder().build()
             );
 
-            return response.text() != null ? response.text().trim() : null;
+            return response.text() != null ? response.text().trim() : "Fehler: Leere API Antwort.";
 
         } catch (Exception e) {
             System.err.println("Fehler bei der KI-Anfrage: " + e.getMessage());
-            return null;
+            return "Fehler: " + e.getMessage();
         }
     }
 
@@ -346,6 +365,8 @@ public class EinmaligerOrtEintrag {
                 lowerText.contains("fehler") ||
                 lowerText.contains("429 too many requests") ||
                 lowerText.contains("quota exceeded") ||
-                lowerText.contains("rate limit");
+                lowerText.contains("rate limit") ||
+                lowerText.contains("404 not found") ||
+                lowerText.contains("is not found");
     }
 }

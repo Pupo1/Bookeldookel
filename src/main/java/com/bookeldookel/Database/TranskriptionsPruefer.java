@@ -82,6 +82,18 @@ public class TranskriptionsPruefer {
             System.out.println("=== Prüfung beendet ===\n");
 
             // Nach Abschluss der Prüfung: Fragen, ob .wav-Dateien gelöscht/archiviert werden sollen
+            // Aber nur, wenn wir tatsächlich Transkriptionen in der DB bearbeitet/geprüft haben
+            // ODER wenn generell keine ungeprüften mehr da sind
+            
+            // Wenn während des Transkriptionsprozesses bereits ein Fehler auftrat (z.B. API Quota), 
+            // überspringen wir die Archivierung komplett, es sei denn, wir wollen sie explizit manuell ausführen.
+            // Der User hat gewünscht, dass dies *nicht* angeboten wird, wenn ein Fehler auftrat.
+            if (Main.fehlerAufgetreten) {
+                System.out.println("Hinweis: Es traten Fehler bei der API-Anfrage (z.B. Quota-Limits) auf.");
+                System.out.println("Die .wav-Dateien im 'diyrecord'-Ordner werden daher NICHT archiviert/gelöscht.");
+                return;
+            }
+            
             frageNachWavLoeschung(scanner);
 
         } catch (SQLException e) {
@@ -114,22 +126,106 @@ public class TranskriptionsPruefer {
             return;
         }
 
-        String aktion = Main.DEVELOPER_MODUS ? "archiviert" : "gelöscht";
-        System.out.println("--------------------------------------------------");
-        System.out.println("Es befinden sich " + wavCount + " .wav-Datei(en) im diyrecord-Ordner.");
-        System.out.print("Sollen alle .wav-Dateien " + aktion + " werden? (ja/j/nein): ");
-        
-        String antwort = scanner.nextLine().trim();
-        
-        if (antwort.equalsIgnoreCase("ja") || antwort.equalsIgnoreCase("j")) {
-            if (Main.DEVELOPER_MODUS) {
-                archiviereWavDateien(diyrecordDir);
-            } else {
-                loescheWavDateien(diyrecordDir);
-            }
-        } else {
-            System.out.println("-> .wav-Dateien werden NICHT " + aktion + ".");
+        // Wir prüfen zuerst in der Datenbank, ob es ÜBERHAUPT noch ungeprüfte oder
+        // fehlerhafte Einträge gibt (check_status ist NULL oder != 1).
+        // Wenn ja, überspringen wir diese Frage komplett, damit fehlerhafte Dateien 
+        // nicht fälschlicherweise archiviert werden und der Loop vermieden wird.
+        if (gibtEsUngepruefteEintraege()) {
+            System.out.println("Hinweis: Es gibt noch ungeprüfte oder fehlerhafte Transkriptionen in der Datenbank.");
+            System.out.println("Die Dateien im 'diyrecord'-Ordner werden daher vorerst NICHT archiviert/gelöscht.");
+            return; // Wir verlassen die Methode vorzeitig.
         }
+
+        // Wir prüfen außerdem, ob es WAV Dateien im Ordner gibt, die gar nicht in der
+        // DB existieren (z.B. wegen Quota Limit Abbrüchen während der Transkription)
+        boolean ungespeicherteDateienVorhanden = false;
+        try (Stream<Path> paths = Files.list(diyrecordDir)) {
+            ungespeicherteDateienVorhanden = paths.filter(p -> p.toString().toLowerCase().endsWith(".wav") && !Files.isDirectory(p))
+                 .anyMatch(wavFile -> {
+                     String pfadStr = wavFile.toAbsolutePath().toString();
+                     if (pfadStr.length() > 100) pfadStr = pfadStr.substring(0, 100);
+                     return !existiertInDatenbank(pfadStr);
+                 });
+        } catch (IOException e) {
+            System.err.println("Fehler bei der Überprüfung ungespeicherter Dateien: " + e.getMessage());
+            return; // Im Zweifel abbrechen
+        }
+
+        if (ungespeicherteDateienVorhanden) {
+            System.out.println("Hinweis: Es gibt noch .wav-Dateien im 'diyrecord'-Ordner, die nicht in die Datenbank übertragen wurden (z.B. wegen API-Limits).");
+            System.out.println("Die Dateien werden daher vorerst NICHT archiviert/gelöscht.");
+            return;
+        }
+
+        String aktion = Main.DEVELOPER_MODUS ? "archiviert" : "gelöscht";
+        
+        while (true) {
+            System.out.println("--------------------------------------------------");
+            System.out.println("Es befinden sich " + wavCount + " .wav-Datei(en) im diyrecord-Ordner.");
+            System.out.print("Sollen alle .wav-Dateien " + aktion + " werden? (ja/j/nein/n): ");
+            
+            // Scanner input could block indefinitely if not handled correctly.
+            // Using hasNextLine() avoids blocking errors.
+            if (!scanner.hasNextLine()) {
+                System.out.println("\nKeine Eingabe möglich. Vorgang abgebrochen.");
+                break;
+            }
+            
+            String antwort = scanner.nextLine().trim().toLowerCase();
+            
+            if (antwort.equals("ja") || antwort.equals("j")) {
+                if (Main.DEVELOPER_MODUS) {
+                    archiviereWavDateien(diyrecordDir);
+                } else {
+                    loescheWavDateien(diyrecordDir);
+                }
+                break;
+            } else if (antwort.equals("nein") || antwort.equals("n")) {
+                System.out.println("-> .wav-Dateien werden NICHT " + aktion + ".");
+                break; // Hier fehlte das Break! Deswegen gab es den Endlos-Loop.
+            } else {
+                System.out.println("Ungültige Eingabe. Bitte 'ja', 'j', 'nein' oder 'n' eingeben.");
+            }
+        }
+    }
+
+    /**
+     * Hilfsmethode, die prüft, ob ein Dateipfad bereits als Eintrag in der Datenbank existiert.
+     */
+    private static boolean existiertInDatenbank(String pfad) {
+        Connection conn = Datenbankmanager.getConnection();
+        if (conn == null) return false; 
+
+        String selectSQL = "SELECT 1 FROM tonaufnahmen WHERE pfad = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
+            pstmt.setString(1, pfad);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            System.err.println("Fehler bei der Überprüfung der Dateiexistenz in DB: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Hilfsmethode, die prüft, ob es noch ungeprüfte Einträge gibt.
+     */
+    private static boolean gibtEsUngepruefteEintraege() {
+        Connection conn = Datenbankmanager.getConnection();
+        if (conn == null) return true; // Im Zweifel lieber nicht löschen
+
+        String selectSQL = "SELECT 1 FROM tonaufnahmen WHERE check_status IS NULL OR check_status != 1 LIMIT 1";
+        try (PreparedStatement pstmt = conn.prepareStatement(selectSQL);
+             ResultSet rs = pstmt.executeQuery()) {
+            if (rs.next()) {
+                return true; // Mindestens einer gefunden
+            }
+        } catch (SQLException e) {
+            System.err.println("Fehler bei der Überprüfung offener Einträge: " + e.getMessage());
+            return true; // Im Zweifel nicht löschen
+        }
+        return false;
     }
 
     /**
