@@ -85,7 +85,6 @@ public class EinmaligerOrtEintrag {
             Matcher zahlMatcher = zahlPattern.matcher(transkription);
 
             if (inhaltMatcher.find()) {
-                // Es handelt sich um eine Inhaltsangabe
                 String zahlStr = inhaltMatcher.group(1);
                 int nummer = Integer.parseInt(zahlStr);
                 int endeIndex = inhaltMatcher.end(1);
@@ -97,7 +96,6 @@ public class EinmaligerOrtEintrag {
                 verarbeiteDatenbankInhalt(nummer, restText, wavFile, archivDir);
 
             } else if (zahlMatcher.find()) {
-                // Es handelt sich um eine Ort-Registrierung (nur Zahl am Anfang)
                 String zahlStr = zahlMatcher.group(1);
                 int nummer = Integer.parseInt(zahlStr);
                 int endeIndex = zahlMatcher.end(1);
@@ -106,15 +104,18 @@ public class EinmaligerOrtEintrag {
                 System.out.println("Ort-Registrierung für Schachtel " + nummer + " erkannt.");
                 System.out.println("Ort: " + restText);
 
-                // Sicherheitsabfrage mit Korrekturmöglichkeit
+                // Sicherheitsabfrage mit Korrekturmöglichkeit und "ignore" Option
                 int[] bestaetigteWerte = frageBenutzerNachBestaetigung(nummer, restText);
                 
                 if (bestaetigteWerte != null) {
                     int endgueltigeNummer = bestaetigteWerte[0];
-                    String endgueltigerOrt = bestaetigteWerte[1] == -1 ? restText : 
-                            holeKorrigiertenOrt();
                     
-                    verarbeiteDatenbankOrt(endgueltigeNummer, endgueltigerOrt, wavFile, archivDir);
+                    if (bestaetigteWerte[1] == -2) {
+                        ignoriereDatei(wavFile, archivDir);
+                    } else {
+                        String endgueltigerOrt = bestaetigteWerte[1] == -1 ? restText : holeKorrigiertenOrt();
+                        verarbeiteDatenbankOrt(endgueltigeNummer, endgueltigerOrt, wavFile, archivDir);
+                    }
                 } else {
                     System.out.println("Eintrag wurde vom Benutzer abgebrochen.");
                 }
@@ -138,7 +139,11 @@ public class EinmaligerOrtEintrag {
      * 
      * @param vorgeschlageneNummer Die aus der Transkription erkannte Schachtelnummer
      * @param vorgeschlagenerOrt Der aus der Transkription erkannte Ort
-     * @return Array mit [nummer, flag] wobei flag=-1 bedeutet "Ort unverändert", oder null bei Abbruch
+     * @return Array mit [nummer, flag] wobei 
+     *         flag=-1 bedeutet "Ort unverändert", 
+     *         flag=1 bedeutet "Ort korrigiert",
+     *         flag=-2 bedeutet "Ignorieren/nur archivieren",
+     *         oder null bei Abbruch
      */
     private static int[] frageBenutzerNachBestaetigung(int vorgeschlageneNummer, String vorgeschlagenerOrt) {
         System.out.println();
@@ -149,6 +154,7 @@ public class EinmaligerOrtEintrag {
         System.out.println("  Ort: " + vorgeschlagenerOrt);
         System.out.println("────────────────────────────────────────────────────────────────");
         System.out.println("  [Enter] = Bestaetigen");
+        System.out.println("  \"ignore\" = Fehlerhafte Datei (wird ins Archiv verschoben ohne DB Eintrag)");
         System.out.println("  Korrektur eingeben: z.B. \"1012 Sicherungskasten\"");
         System.out.println("  \"abbruch\" = Vorgang abbrechen");
         System.out.println("════════════════════════════════════════════════════════════════");
@@ -168,6 +174,12 @@ public class EinmaligerOrtEintrag {
                 System.out.println("Vorschlag bestaetigt.");
                 letzterKorrigierterOrt = vorgeschlagenerOrt;
                 return new int[]{vorgeschlageneNummer, -1};
+            }
+            
+            // Datei ignorieren
+            if (eingabe.equalsIgnoreCase("ignore")) {
+                System.out.println("Datei wird ignoriert.");
+                return new int[]{vorgeschlageneNummer, -2};
             }
             
             // Abbruch
@@ -204,6 +216,16 @@ public class EinmaligerOrtEintrag {
      */
     private static String holeKorrigiertenOrt() {
         return letzterKorrigierterOrt;
+    }
+    
+    private static void ignoriereDatei(Path originalDatei, Path archivDir) {
+        try {
+            Path zielPfad = findeEindeutigenZielpfad(archivDir, originalDatei.getFileName().toString());
+            Files.move(originalDatei, zielPfad, StandardCopyOption.REPLACE_EXISTING);
+            System.out.println("Fehlerhafte Datei (ignoriert) archiviert nach: " + zielPfad);
+        } catch (IOException e) {
+            System.err.println("Fehler beim Verschieben der fehlerhaften Datei ins Archiv: " + e.getMessage());
+        }
     }
 
     private static void verarbeiteDatenbankOrt(int nummer, String ort, Path originalDatei, Path archivDir) {

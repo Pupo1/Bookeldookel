@@ -140,8 +140,14 @@ public class OrtEintragen {
                     int[] bestaetigteWerte = frageBenutzerNachBestaetigung(erg.nummer, erg.text);
                     if (bestaetigteWerte != null) {
                         int endgueltigeNummer = bestaetigteWerte[0];
-                        String endgueltigerInhalt = bestaetigteWerte[1] == -1 ? erg.text : holeKorrigiertenOrt();
-                        verarbeiteDatenbankInhalt(endgueltigeNummer, endgueltigerInhalt, erg.wavFile, archivDir);
+                        
+                        // Prüfen ob ignoriert werden soll
+                        if (bestaetigteWerte[1] == -2) {
+                            ignoriereDatei(erg.wavFile, archivDir);
+                        } else {
+                            String endgueltigerInhalt = bestaetigteWerte[1] == -1 ? erg.text : holeKorrigiertenOrt();
+                            verarbeiteDatenbankInhalt(endgueltigeNummer, endgueltigerInhalt, erg.wavFile, archivDir);
+                        }
                     } else {
                         System.out.println("Eintrag wurde vom Benutzer abgebrochen.");
                     }
@@ -153,8 +159,14 @@ public class OrtEintragen {
                     int[] bestaetigteWerte = frageBenutzerNachBestaetigung(erg.nummer, erg.text);
                     if (bestaetigteWerte != null) {
                         int endgueltigeNummer = bestaetigteWerte[0];
-                        String endgueltigerOrt = bestaetigteWerte[1] == -1 ? erg.text : holeKorrigiertenOrt();
-                        verarbeiteDatenbankOrt(endgueltigeNummer, endgueltigerOrt, erg.wavFile, archivDir);
+                        
+                        // Prüfen ob ignoriert werden soll
+                        if (bestaetigteWerte[1] == -2) {
+                            ignoriereDatei(erg.wavFile, archivDir);
+                        } else {
+                            String endgueltigerOrt = bestaetigteWerte[1] == -1 ? erg.text : holeKorrigiertenOrt();
+                            verarbeiteDatenbankOrt(endgueltigeNummer, endgueltigerOrt, erg.wavFile, archivDir);
+                        }
                     } else {
                         System.out.println("Eintrag wurde vom Benutzer abgebrochen.");
                     }
@@ -173,11 +185,16 @@ public class OrtEintragen {
      * 
      * @param vorgeschlageneNummer Die aus der Transkription erkannte Schachtelnummer
      * @param vorgeschlagenerText Der aus der Transkription erkannte Text
-     * @return Array mit [nummer, flag] wobei flag=-1 bedeutet "Text unverändert", oder null bei Abbruch
+     * @return Array mit [nummer, flag] wobei 
+     *         flag=-1 bedeutet "Text unverändert",
+     *         flag=1 bedeutet "Text korrigiert",
+     *         flag=-2 bedeutet "Ignorieren/nur archivieren",
+     *         oder null bei Abbruch
      */
     private static int[] frageBenutzerNachBestaetigung(int vorgeschlageneNummer, String vorgeschlagenerText) {
         System.out.println("────────────────────────────────────────────────────────────────");
         System.out.println("  [Enter] = Bestätigen");
+        System.out.println("  \"ignore\" = Fehlerhafte Datei (wird ins Archiv verschoben ohne DB Eintrag)");
         System.out.println("  Korrektur eingeben: \"[Nummer] [Text]\" (z.B. \"1012 Sicherungskasten\")");
         System.out.println("  \"abbruch\" = Vorgang abbrechen");
         System.out.println("════════════════════════════════════════════════════════════════");
@@ -197,6 +214,12 @@ public class OrtEintragen {
                 System.out.println("Vorschlag bestätigt.");
                 letzterKorrigierterOrt = vorgeschlagenerText;
                 return new int[]{vorgeschlageneNummer, -1};
+            }
+            
+            // Datei ignorieren
+            if (eingabe.equalsIgnoreCase("ignore")) {
+                System.out.println("Datei wird ignoriert.");
+                return new int[]{vorgeschlageneNummer, -2};
             }
             
             // Abbruch
@@ -233,6 +256,16 @@ public class OrtEintragen {
      */
     private static String holeKorrigiertenOrt() {
         return letzterKorrigierterOrt;
+    }
+    
+    private static void ignoriereDatei(Path originalDatei, Path archivDir) {
+        try {
+            Path zielPfad = findeEindeutigenZielpfad(archivDir, originalDatei.getFileName().toString());
+            Files.move(originalDatei, zielPfad, StandardCopyOption.REPLACE_EXISTING);
+            System.out.println("Fehlerhafte Datei (ignoriert) archiviert nach: " + zielPfad);
+        } catch (IOException e) {
+            System.err.println("Fehler beim Verschieben der fehlerhaften Datei ins Archiv: " + e.getMessage());
+        }
     }
 
     private static void verarbeiteDatenbankOrt(int nummer, String ort, Path originalDatei, Path archivDir) {
