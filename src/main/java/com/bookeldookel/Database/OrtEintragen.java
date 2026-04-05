@@ -13,8 +13,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 import java.util.stream.Stream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -24,6 +26,21 @@ public class OrtEintragen {
     // Für Audio-Transkription verwenden wir Gemini 2.5 Flash
     private static final String MODEL_NAME = "gemini-2.5-flash";
     private static final BufferedReader KONSOLE = new BufferedReader(new InputStreamReader(System.in));
+
+    // Interne Klasse zum Speichern der Ergebnisse vor der Bestätigung
+    private static class TranskriptionsErgebnis {
+        Path wavFile;
+        int nummer;
+        String text;
+        boolean istInhalt;
+
+        public TranskriptionsErgebnis(Path wavFile, int nummer, String text, boolean istInhalt) {
+            this.wavFile = wavFile;
+            this.nummer = nummer;
+            this.text = text;
+            this.istInhalt = istInhalt;
+        }
+    }
 
     public static void verarbeiteMp3Ordner() {
         System.out.println("\n=== Starte Verarbeitung von .wav-Dateien aus dem mp3-Ordner (OrtEintragen) ===");
@@ -48,16 +65,18 @@ public class OrtEintragen {
         // Initialisiere die Datenbankverbindung und -struktur, falls noch nicht geschehen
         Datenbankmanager.erstelleTabelleFallsNichtExistent();
 
+        List<TranskriptionsErgebnis> ergebnisse = new ArrayList<>();
+
+        // 1. Alle Dateien nacheinander transkribieren
         try (Stream<Path> paths = Files.list(mp3Dir)) {
             paths.filter(p -> p.toString().toLowerCase().endsWith(".wav") && !Files.isDirectory(p))
                  .forEach(wavFile -> {
-                     System.out.println("\nVerarbeite Datei: " + wavFile.getFileName());
+                     System.out.println("\nTranskribiere Datei: " + wavFile.getFileName());
 
-                     // 1. Transkribieren
                      String transkription = transkribiere(wavFile);
 
                      if (transkription == null) {
-                         System.out.println("Transkription fehlgeschlagen (Ergebnis ist null). Datei wird übersprungen.");
+                         System.out.println("Transkription fehlgeschlagen (Ergebnis ist null). Datei wird für spätere Überprüfung übersprungen.");
                          return; // Continue mit nächster Datei
                      } else if (isErrorText(transkription)) {
                          System.out.println("Transkription ungültig, da sie als Fehlertext erkannt wurde.");
@@ -67,7 +86,6 @@ public class OrtEintragen {
 
                      System.out.println("Erkannter Text: " + transkription);
 
-                     // 2. Prüfen, ob "Inhalt von <Zahl>" oder nur eine Zahl am Anfang steht
                      Pattern inhaltPattern = Pattern.compile("(?i)^\\D*inhalt\\s+von\\s+(\\d+)");
                      Matcher inhaltMatcher = inhaltPattern.matcher(transkription);
                      
@@ -75,39 +93,22 @@ public class OrtEintragen {
                      Matcher zahlMatcher = zahlPattern.matcher(transkription);
 
                      if (inhaltMatcher.find()) {
-                         // Es handelt sich um eine Inhaltsangabe
                          String zahlStr = inhaltMatcher.group(1);
                          int nummer = Integer.parseInt(zahlStr);
                          int endeIndex = inhaltMatcher.end(1);
                          String restText = transkription.substring(endeIndex).trim();
                          
-                         System.out.println("Inhaltsangabe für Schachtel " + nummer + " erkannt.");
-                         System.out.println("Neuer Inhalt: " + restText);
-                         
-                         verarbeiteDatenbankInhalt(nummer, restText, wavFile, archivDir);
+                         System.out.println("-> Inhaltsangabe für Schachtel " + nummer + " erkannt.");
+                         ergebnisse.add(new TranskriptionsErgebnis(wavFile, nummer, restText, true));
 
                      } else if (zahlMatcher.find()) {
-                         // Es handelt sich um eine Ort-Registrierung (nur Zahl am Anfang)
                          String zahlStr = zahlMatcher.group(1);
                          int nummer = Integer.parseInt(zahlStr);
                          int endeIndex = zahlMatcher.end(1);
                          String restText = transkription.substring(endeIndex).trim();
 
-                         System.out.println("Ort-Registrierung für Schachtel " + nummer + " erkannt.");
-                         System.out.println("Ort: " + restText);
-
-                         // Sicherheitsabfrage mit Korrekturmöglichkeit
-                         int[] bestaetigteWerte = frageBenutzerNachBestaetigung(nummer, restText);
-                         
-                         if (bestaetigteWerte != null) {
-                             int endgueltigeNummer = bestaetigteWerte[0];
-                             String endgueltigerOrt = bestaetigteWerte[1] == -1 ? restText : 
-                                     holeKorrigiertenOrt();
-                             
-                             verarbeiteDatenbankOrt(endgueltigeNummer, endgueltigerOrt, wavFile, archivDir);
-                         } else {
-                             System.out.println("Eintrag wurde vom Benutzer abgebrochen.");
-                         }
+                         System.out.println("-> Ort-Registrierung für Schachtel " + nummer + " erkannt.");
+                         ergebnisse.add(new TranskriptionsErgebnis(wavFile, nummer, restText, false));
 
                      } else {
                          System.err.println("FEHLER: Keine Zahl am Anfang des Textes gefunden. Datei wird übersprungen.");
@@ -124,30 +125,60 @@ public class OrtEintragen {
         } catch (IOException e) {
             System.err.println("Fehler beim Zugriff auf mp3-Ordner: " + e.getMessage());
         }
+
+        // 2. Ergebnisse nacheinander dem Benutzer präsentieren und in DB speichern
+        if (ergebnisse.isEmpty()) {
+            System.out.println("\nKeine auswertbaren Transkriptionen gefunden.");
+        } else {
+            System.out.println("\n=== Bestätigung der Transkriptionen ===");
+            for (TranskriptionsErgebnis erg : ergebnisse) {
+                if (erg.istInhalt) {
+                    System.out.println("\n[Datei: " + erg.wavFile.getFileName() + "]");
+                    System.out.println("Das System möchte folgenden INHALT für Schachtel " + erg.nummer + " hinzufügen:");
+                    System.out.println("Inhalt: " + erg.text);
+                    
+                    int[] bestaetigteWerte = frageBenutzerNachBestaetigung(erg.nummer, erg.text);
+                    if (bestaetigteWerte != null) {
+                        int endgueltigeNummer = bestaetigteWerte[0];
+                        String endgueltigerInhalt = bestaetigteWerte[1] == -1 ? erg.text : holeKorrigiertenOrt();
+                        verarbeiteDatenbankInhalt(endgueltigeNummer, endgueltigerInhalt, erg.wavFile, archivDir);
+                    } else {
+                        System.out.println("Eintrag wurde vom Benutzer abgebrochen.");
+                    }
+                } else {
+                    System.out.println("\n[Datei: " + erg.wavFile.getFileName() + "]");
+                    System.out.println("Das System möchte folgenden ORT für Schachtel " + erg.nummer + " registrieren:");
+                    System.out.println("Ort: " + erg.text);
+                    
+                    int[] bestaetigteWerte = frageBenutzerNachBestaetigung(erg.nummer, erg.text);
+                    if (bestaetigteWerte != null) {
+                        int endgueltigeNummer = bestaetigteWerte[0];
+                        String endgueltigerOrt = bestaetigteWerte[1] == -1 ? erg.text : holeKorrigiertenOrt();
+                        verarbeiteDatenbankOrt(endgueltigeNummer, endgueltigerOrt, erg.wavFile, archivDir);
+                    } else {
+                        System.out.println("Eintrag wurde vom Benutzer abgebrochen.");
+                    }
+                }
+            }
+        }
         
         System.out.println("\n=== Verarbeitung von .wav-Dateien (OrtEintragen) beendet ===");
     }
 
-    // Speichert den korrigierten Ort zwischen
+    // Speichert den korrigierten Text (Ort oder Inhalt) zwischen
     private static String letzterKorrigierterOrt = null;
 
     /**
      * Fragt den Benutzer nach Bestätigung oder Korrektur der erkannten Daten.
      * 
      * @param vorgeschlageneNummer Die aus der Transkription erkannte Schachtelnummer
-     * @param vorgeschlagenerOrt Der aus der Transkription erkannte Ort
-     * @return Array mit [nummer, flag] wobei flag=-1 bedeutet "Ort unverändert", oder null bei Abbruch
+     * @param vorgeschlagenerText Der aus der Transkription erkannte Text
+     * @return Array mit [nummer, flag] wobei flag=-1 bedeutet "Text unverändert", oder null bei Abbruch
      */
-    private static int[] frageBenutzerNachBestaetigung(int vorgeschlageneNummer, String vorgeschlagenerOrt) {
-        System.out.println();
-        System.out.println("════════════════════════════════════════════════════════════════");
-        System.out.println("                    SICHERHEITSABFRAGE                          ");
-        System.out.println("════════════════════════════════════════════════════════════════");
-        System.out.println("  Schachtel-Nr: " + vorgeschlageneNummer);
-        System.out.println("  Ort: " + vorgeschlagenerOrt);
+    private static int[] frageBenutzerNachBestaetigung(int vorgeschlageneNummer, String vorgeschlagenerText) {
         System.out.println("────────────────────────────────────────────────────────────────");
-        System.out.println("  [Enter] = Bestaetigen");
-        System.out.println("  Korrektur eingeben: \"[Nummer] [Bezeichnung]\"");
+        System.out.println("  [Enter] = Bestätigen");
+        System.out.println("  Korrektur eingeben: \"[Nummer] [Text]\" (z.B. \"1012 Sicherungskasten\")");
         System.out.println("  \"abbruch\" = Vorgang abbrechen");
         System.out.println("════════════════════════════════════════════════════════════════");
         System.out.print("Ihre Eingabe: ");
@@ -163,8 +194,8 @@ public class OrtEintragen {
             
             // Leere Eingabe = Bestätigung des Vorschlags
             if (eingabe.isEmpty()) {
-                System.out.println("Vorschlag bestaetigt.");
-                letzterKorrigierterOrt = vorgeschlagenerOrt;
+                System.out.println("Vorschlag bestätigt.");
+                letzterKorrigierterOrt = vorgeschlagenerText;
                 return new int[]{vorgeschlageneNummer, -1};
             }
             
@@ -173,21 +204,21 @@ public class OrtEintragen {
                 return null;
             }
             
-            // Korrektur parsen: "1012 Sicherungskasten" -> Nummer=1012, Ort="Sicherungskasten"
+            // Korrektur parsen: "1012 Sicherungskasten" -> Nummer=1012, Text="Sicherungskasten"
             Pattern korrekturPattern = Pattern.compile("^(\\d+)\\s+(.+)$");
             Matcher korrekturMatcher = korrekturPattern.matcher(eingabe);
             
             if (korrekturMatcher.find()) {
                 int korrigierteNummer = Integer.parseInt(korrekturMatcher.group(1));
-                String korrigierterOrt = korrekturMatcher.group(2).trim();
+                String korrigierterText = korrekturMatcher.group(2).trim();
                 
-                System.out.println("Korrektur uebernommen: Schachtel " + korrigierteNummer + ", Ort: " + korrigierterOrt);
-                letzterKorrigierterOrt = korrigierterOrt;
+                System.out.println("Korrektur übernommen: Schachtel " + korrigierteNummer + ", Text: " + korrigierterText);
+                letzterKorrigierterOrt = korrigierterText;
                 return new int[]{korrigierteNummer, 1};
             } else {
-                System.err.println("Ungueltiges Eingabeformat. Erwartet: \"<Nummer> <Ort>\" (z.B. \"1012 Sicherungskasten\")");
-                System.out.println("Verwende urspruenglichen Vorschlag.");
-                letzterKorrigierterOrt = vorgeschlagenerOrt;
+                System.err.println("Ungültiges Eingabeformat. Erwartet: \"<Nummer> <Text>\" (z.B. \"1012 Sicherungskasten\")");
+                System.out.println("Verwende ursprünglichen Vorschlag.");
+                letzterKorrigierterOrt = vorgeschlagenerText;
                 return new int[]{vorgeschlageneNummer, -1};
             }
             
@@ -198,7 +229,7 @@ public class OrtEintragen {
     }
 
     /**
-     * Holt den korrigierten Ort aus dem letzten Durchlauf.
+     * Holt den korrigierten Text aus dem letzten Durchlauf.
      */
     private static String holeKorrigiertenOrt() {
         return letzterKorrigierterOrt;
@@ -216,7 +247,7 @@ public class OrtEintragen {
                 Datenbankmanager.neueSchachtelAnlegen(nummer, ort, tondateipfad);
             } else {
                 // Schachtel existiert. Neue Anforderung: Immer überschreiben/aktualisieren.
-                System.out.println("Schachtel " + nummer + " existiert bereits. Ort wird ueberschrieben/aktualisiert.");
+                System.out.println("Schachtel " + nummer + " existiert bereits. Ort wird überschrieben/aktualisiert.");
                 Datenbankmanager.updateSchachtelOrt(nummer, ort, tondateipfad);
             }
             
