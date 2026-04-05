@@ -26,10 +26,12 @@ public class WohinDamit {
 
         System.out.println(aufnahmen.size() + " geprüfte Transkription(en) gefunden. Starte Verarbeitung...");
 
-        // 2. Artikel aus der Datenbank laden (müssen wir nur einmal machen)
+        // 2. Artikel und Schachtel-Inhalte aus der Datenbank laden
         List<String> artikelListe = Datenbankmanager.holeAlleArtikel();
-        if (artikelListe.isEmpty()) {
-            System.out.println("Die Tabelle 'artikel' ist leer. Eine Zuordnung ist nicht möglich.");
+        List<String> schachtelInhalte = Datenbankmanager.holeAlleSchachtelInhalte();
+
+        if (artikelListe.isEmpty() && schachtelInhalte.isEmpty()) {
+            System.out.println("Die Tabellen 'artikel' und 'schachtel' enthalten keine Daten. Eine Zuordnung ist nicht möglich.");
             return;
         }
 
@@ -43,60 +45,128 @@ public class WohinDamit {
         // Wir erstellen den Client einmal für alle Anfragen
         try (Client client = Client.builder().apiKey(apiKey).build()) {
             
-            // Vorbereiten des festen Teils des Prompts
-            StringBuilder basisPromptBuilder = new StringBuilder();
-            basisPromptBuilder.append("Du bist ein intelligenter Lager-Assistent.\n");
-            basisPromptBuilder.append("Hier ist eine Liste aller Artikel, die bereits in meinem System existieren:\n");
-            for (String artikel : artikelListe) {
-                basisPromptBuilder.append("- ").append(artikel).append("\n");
-            }
-            basisPromptBuilder.append("\nAufgabe: Zu welchem Artikel aus der Liste passt der folgende transkribierte Text am besten?\n");
-            basisPromptBuilder.append("Bitte antworte NUR mit dem exakten Namen des passenden Artikels aus der Liste. Wenn gar kein Artikel aus der Liste passt, antworte mit 'NEUER_ARTIKEL'.\n\n");
-            basisPromptBuilder.append("Transkribierter Text:\n");
-
-            String basisPrompt = basisPromptBuilder.toString();
-
             // Schleife über alle Aufnahmen
             for (int i = 0; i < aufnahmen.size(); i++) {
                 Datenbankmanager.Tonaufnahme aufnahme = aufnahmen.get(i);
-                System.out.println("\nVerarbeite Aufnahme ID " + aufnahme.id + ": \"" + aufnahme.inhalt + "\"");
+                System.out.println("\n--------------------------------------------------");
+                System.out.println("Verarbeite Aufnahme ID " + aufnahme.id + ": \"" + aufnahme.inhalt + "\"");
 
-                // Individuellen Prompt zusammensetzen
-                String aktuellerPrompt = basisPrompt + "\"" + aufnahme.inhalt + "\"";
+                boolean inSchachtelGefunden = false;
 
-                Part textPart = Part.builder().text(aktuellerPrompt).build();
-                Content content = Content.builder().parts(Arrays.asList(textPart)).build();
-
-                System.out.print("Sende Anfrage an Gemini (" + MODEL_NAME + ") ... ");
-
-                try {
-                    GenerateContentResponse response = client.models.generateContent(
-                        MODEL_NAME, 
-                        content, 
-                        GenerateContentConfig.builder().build()
-                    );
-
-                    String kiAntwort = response.text();
-                    if (kiAntwort != null) {
-                        String zuordnung = kiAntwort.trim();
-                        System.out.println("Ergebnis: " + zuordnung);
-
-                        // Ergebnis in der Datenbank speichern
-                        Datenbankmanager.speichereZuordnung(aufnahme.id, zuordnung);
-                    } else {
-                        System.out.println("Keine Antwort von der KI geliefert.");
+                // --- SCHRITT A: Direkter Vergleich mit Schachtel-Inhalten ---
+                if (!schachtelInhalte.isEmpty()) {
+                    System.out.println("-> Prüfe, ob der Artikel direkt zu einem Schachtel-Inhalt passt...");
+                    
+                    StringBuilder schachtelPromptBuilder = new StringBuilder();
+                    schachtelPromptBuilder.append("Du bist ein intelligenter Lager-Assistent.\n");
+                    schachtelPromptBuilder.append("Ich habe folgenden neuen Artikel, den ich einlagern möchte:\n");
+                    schachtelPromptBuilder.append("\"").append(aufnahme.inhalt).append("\"\n\n");
+                    schachtelPromptBuilder.append("Hier ist eine Liste von Beschreibungen, was sich in meinen Schachteln befindet:\n");
+                    
+                    for (String inhalt : schachtelInhalte) {
+                        schachtelPromptBuilder.append("- ").append(inhalt).append("\n");
                     }
                     
-                    // Da wir eventuell viele Anfragen stellen, sollten wir auch hier ein Delay einbauen, 
-                    // um Rate-Limits (Quota exceeded) zu vermeiden. Aber wir warten natürlich nicht nach der
-                    // letzten Anfrage.
-                    if (i < aufnahmen.size() - 1) {
-                        System.out.println("Warte 16 Sekunden auf nächste Anfrage, um Rate Limits zu vermeiden...");
-                        Thread.sleep(16000);
+                    schachtelPromptBuilder.append("\nAufgabe: Passt der neue Artikel inhaltlich gut zu einer dieser Schachteln?\n");
+                    schachtelPromptBuilder.append("Bitte antworte NUR mit der exakten Beschreibung der passenden Schachtel aus der Liste. Wenn gar keine Schachtel passt, antworte mit 'NEIN'.");
+
+                    try {
+                        Part textPart = Part.builder().text(schachtelPromptBuilder.toString()).build();
+                        Content content = Content.builder().parts(Arrays.asList(textPart)).build();
+
+                        GenerateContentResponse response = client.models.generateContent(
+                            MODEL_NAME, 
+                            content, 
+                            GenerateContentConfig.builder().build()
+                        );
+
+                        String kiAntwort = response.text();
+                        if (kiAntwort != null) {
+                            String zuordnung = kiAntwort.trim();
+                            if (!zuordnung.equalsIgnoreCase("NEIN")) {
+                                System.out.println("-> KI Ergebnis (Schachtel direkt): " + zuordnung);
+                                Datenbankmanager.speichereZuordnung(aufnahme.id, zuordnung);
+                                inSchachtelGefunden = true;
+                            } else {
+                                System.out.println("-> KI meint: Passt in keine bestehende Schachtel direkt.");
+                            }
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Fehler bei der KI-Anfrage (Schachtel-Check): " + e.getMessage());
                     }
 
-                } catch (Exception e) {
-                    System.err.println("\nFehler bei der KI-Anfrage für diese Aufnahme: " + e.getMessage());
+                    // Puffer, falls wir gleich noch eine Anfrage machen müssen
+                    if (!inSchachtelGefunden && !artikelListe.isEmpty()) {
+                        System.out.println("Warte 16 Sekunden wegen Rate Limits...");
+                        Thread.sleep(16000);
+                    }
+                }
+
+                // --- SCHRITT B: Suche nach ähnlichem Artikel ---
+                if (!inSchachtelGefunden && !artikelListe.isEmpty()) {
+                    System.out.println("-> Prüfe, ob es einen ähnlichen Einzelartikel gibt...");
+                    
+                    StringBuilder artikelPromptBuilder = new StringBuilder();
+                    artikelPromptBuilder.append("Du bist ein intelligenter Lager-Assistent.\n");
+                    artikelPromptBuilder.append("Ich habe folgenden neuen Artikel, den ich einlagern möchte:\n");
+                    artikelPromptBuilder.append("\"").append(aufnahme.inhalt).append("\"\n\n");
+                    artikelPromptBuilder.append("Hier ist eine Liste von Artikeln, die bereits in meinem System existieren:\n");
+                    
+                    for (String artikel : artikelListe) {
+                        artikelPromptBuilder.append("- ").append(artikel).append("\n");
+                    }
+                    
+                    artikelPromptBuilder.append("\nAufgabe: Zu welchem Artikel aus der Liste passt der neue Artikel am besten?\n");
+                    artikelPromptBuilder.append("Bitte antworte NUR mit dem exakten Namen des passenden Artikels aus der Liste. Wenn gar kein Artikel aus der Liste passt, antworte mit 'NEIN'.");
+
+                    System.out.print("Sende Anfrage an Gemini (" + MODEL_NAME + ") für Artikel-Check ... ");
+
+                    try {
+                        Part textPart = Part.builder().text(artikelPromptBuilder.toString()).build();
+                        Content content = Content.builder().parts(Arrays.asList(textPart)).build();
+
+                        GenerateContentResponse response = client.models.generateContent(
+                            MODEL_NAME, 
+                            content, 
+                            GenerateContentConfig.builder().build()
+                        );
+
+                        String kiAntwort = response.text();
+                        if (kiAntwort != null) {
+                            String aehnlicherArtikel = kiAntwort.trim();
+                            
+                            if (!aehnlicherArtikel.equalsIgnoreCase("NEIN")) {
+                                System.out.println("\n-> KI meint, der ähnlichste Artikel ist: " + aehnlicherArtikel);
+                                
+                                // Wir haben einen ähnlichen Artikel gefunden! 
+                                // Jetzt holen wir den Schachtelinhalt, in dem dieser ähnliche Artikel liegt.
+                                String schachtelInhalt = Datenbankmanager.holeSchachtelInhaltZuArtikel(aehnlicherArtikel);
+                                
+                                if (schachtelInhalt != null) {
+                                    System.out.println("-> Zuzuordnender Schachtelinhalt: " + schachtelInhalt);
+                                    Datenbankmanager.speichereZuordnung(aufnahme.id, schachtelInhalt);
+                                } else {
+                                    System.out.println("-> Der ähnliche Artikel liegt in keiner bekannten Schachtel (oder Inhalt ist leer).");
+                                    Datenbankmanager.speichereZuordnung(aufnahme.id, "NEUER_ARTIKEL");
+                                }
+                            } else {
+                                System.out.println("\n-> KI meint: Kein ähnlicher Artikel gefunden.");
+                                Datenbankmanager.speichereZuordnung(aufnahme.id, "NEUER_ARTIKEL");
+                            }
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Fehler bei der KI-Anfrage (Artikel-Check): " + e.getMessage());
+                    }
+                } else if (!inSchachtelGefunden) {
+                    // Weder Schachtel noch Artikel Liste vorhanden/durchsuchbar
+                    System.out.println("-> Keine Vergleichsdaten (Artikel) vorhanden.");
+                    Datenbankmanager.speichereZuordnung(aufnahme.id, "NEUER_ARTIKEL");
+                }
+                
+                // Delay vor dem nächsten Schleifendurchlauf (nächste Aufnahme)
+                if (i < aufnahmen.size() - 1) {
+                    System.out.println("Warte 16 Sekunden auf nächste Aufnahme...");
+                    Thread.sleep(16000);
                 }
             }
 

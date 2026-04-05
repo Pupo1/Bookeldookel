@@ -66,6 +66,7 @@ public class Datenbankmanager {
         // Tabelle artikel anlegen, falls noch nicht vorhanden
         String createArtikelTableSQL = "CREATE TABLE IF NOT EXISTS artikel ("
                 + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                + "schachtel_id INT DEFAULT NULL, "
                 + "bezeichnung VARCHAR(255)"
                 + ");";
 
@@ -76,7 +77,8 @@ public class Datenbankmanager {
                 + "glied_id INT DEFAULT NULL, "
                 + "Tondateipfad VARCHAR(200) DEFAULT NULL, "
                 + "sort_order INT DEFAULT NULL, "
-                + "Inhalt VARCHAR(255) DEFAULT NULL"
+                + "Inhalt VARCHAR(255) DEFAULT NULL, "
+                + "Ort VARCHAR(400) DEFAULT NULL"
                 + ");";
 
         try (Statement stmt = conn.createStatement()) {
@@ -88,7 +90,7 @@ public class Datenbankmanager {
             // MetaData verwenden, um Spalten zu prüfen (vermeidet SQL-Warnungen in der Konsole)
             java.sql.DatabaseMetaData dbm = conn.getMetaData();
             
-            // Prüfen auf Spalte 'zuordnung'
+            // Prüfen auf Spalte 'zuordnung' in tonaufnahmen
             try (ResultSet rs = dbm.getColumns(null, null, "tonaufnahmen", "zuordnung")) {
                 if (!rs.next()) {
                     System.out.println("Spalte 'zuordnung' fehlt in 'tonaufnahmen', wird hinzugefügt...");
@@ -97,7 +99,7 @@ public class Datenbankmanager {
                 }
             }
 
-            // Prüfen auf Spalte 'zuordnung_check'
+            // Prüfen auf Spalte 'zuordnung_check' in tonaufnahmen
             try (ResultSet rs = dbm.getColumns(null, null, "tonaufnahmen", "zuordnung_check")) {
                 if (!rs.next()) {
                     System.out.println("Spalte 'zuordnung_check' fehlt in 'tonaufnahmen', wird hinzugefügt...");
@@ -106,7 +108,7 @@ public class Datenbankmanager {
                 }
             }
 
-            // Prüfen auf Spalte 'Ort' in 'schachtel'
+            // Prüfen auf Spalte 'Ort' in 'schachtel' (nur falls noch nicht durch CREATE TABLE oben abgedeckt in Altsystemen)
             try (ResultSet rs = dbm.getColumns(null, null, "schachtel", "Ort")) {
                 if (!rs.next()) {
                     System.out.println("Spalte 'Ort' fehlt in 'schachtel', wird hinzugefügt...");
@@ -140,17 +142,10 @@ public class Datenbankmanager {
         }
     }
 
-    /**
-     * Prüft, ob eine Transkription für den gegebenen Pfad existiert.
-     * Wenn der check_status NICHT 1 (true) ist, wird der inhalt zurückgegeben
-     * (als Signal, dass nicht neu transkribiert werden muss).
-     * Ist der Datensatz nicht da oder check_status == 1, wird null zurückgegeben.
-     */
     public static String holeVorhandeneTranskription(String pfad) {
         Connection conn = getConnection();
         if (conn == null) return null;
 
-        // Um den genauen Match in der DB zu finden, kürzen wir den Pfad ggf. auf 100 Zeichen
         if (pfad.length() > 100) pfad = pfad.substring(0, 100);
 
         String selectSQL = "SELECT inhalt, check_status FROM tonaufnahmen WHERE pfad = ?";
@@ -162,7 +157,6 @@ public class Datenbankmanager {
                 String inhalt = rs.getString("inhalt");
                 int checkStatus = rs.getInt("check_status");
                 
-                // Wenn check_status NICHT 1 ist (also 0 oder NULL), überspringen wir eine Neuausführung
                 if (checkStatus != 1) {
                     return inhalt;
                 }
@@ -174,9 +168,6 @@ public class Datenbankmanager {
         return null;
     }
 
-    /**
-     * Aktualisiert eine bestehende Transkription oder fügt sie neu ein.
-     */
     public static void speichereOderAktualisiereTranskription(String pfad, String inhalt) {
         Connection conn = getConnection();
         if (conn == null) return;
@@ -184,7 +175,6 @@ public class Datenbankmanager {
         if (pfad.length() > 100) pfad = pfad.substring(0, 100);
         if (inhalt != null && inhalt.length() > 500) inhalt = inhalt.substring(0, 500);
 
-        // Zuerst prüfen, ob der Pfad schon existiert
         String selectSQL = "SELECT aufnahme_id FROM tonaufnahmen WHERE pfad = ?";
         boolean exists = false;
         try (PreparedStatement pstmtSelect = conn.prepareStatement(selectSQL)) {
@@ -199,7 +189,6 @@ public class Datenbankmanager {
         }
 
         if (exists) {
-            // Update
             String updateSQL = "UPDATE tonaufnahmen SET inhalt = ?, check_status = NULL WHERE pfad = ?";
             try (PreparedStatement pstmtUpdate = conn.prepareStatement(updateSQL)) {
                 pstmtUpdate.setString(1, inhalt);
@@ -210,7 +199,6 @@ public class Datenbankmanager {
                 System.err.println("Fehler beim Aktualisieren in der Datenbank: " + e.getMessage());
             }
         } else {
-            // Insert
             speichereTranskription(pfad, inhalt);
         }
     }
@@ -230,6 +218,42 @@ public class Datenbankmanager {
             System.err.println("Fehler beim Laden der Artikel: " + e.getMessage());
         }
         return artikelListe;
+    }
+
+    public static List<String> holeAlleSchachtelInhalte() {
+        Connection conn = getConnection();
+        List<String> inhaltListe = new ArrayList<>();
+        if (conn == null) return inhaltListe;
+
+        String selectSQL = "SELECT Inhalt FROM schachtel WHERE Inhalt IS NOT NULL AND Inhalt != ''";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                inhaltListe.add(rs.getString("Inhalt"));
+            }
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Laden der Schachtel-Inhalte: " + e.getMessage());
+        }
+        return inhaltListe;
+    }
+
+    public static String holeSchachtelInhaltZuArtikel(String artikelBezeichnung) {
+        Connection conn = getConnection();
+        if (conn == null) return null;
+
+        String selectSQL = "SELECT s.Inhalt FROM artikel a JOIN schachtel s ON a.schachtel_id = s.schachtel_id WHERE a.bezeichnung = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
+            pstmt.setString(1, artikelBezeichnung);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return rs.getString("Inhalt");
+            }
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Laden des Schachtel-Inhalts für Artikel '" + artikelBezeichnung + "': " + e.getMessage());
+        }
+
+        return null; // Kein passender Inhalt gefunden
     }
 
     public static Tonaufnahme getErsteGepruefteTranskription() {
@@ -284,10 +308,6 @@ public class Datenbankmanager {
         }
     }
 
-    /**
-     * Prüft, ob eine Schachtel mit der gegebenen Nummer existiert und liefert den aktuellen Ort.
-     * @return Den aktuellen Ort oder "NOT_FOUND", falls die Schachtel nicht existiert.
-     */
     public static String getOrtFuerSchachtel(int nummerAufSchachtel) {
         Connection conn = getConnection();
         if (conn == null) return "NOT_FOUND";
@@ -298,7 +318,6 @@ public class Datenbankmanager {
             ResultSet rs = pstmt.executeQuery();
 
             if (rs.next()) {
-                // Kann auch null sein, wenn Schachtel existiert aber Ort null ist
                 return rs.getString("Ort");
             }
         } catch (SQLException e) {
@@ -307,9 +326,6 @@ public class Datenbankmanager {
         return "NOT_FOUND";
     }
 
-    /**
-     * Legt eine neue Schachtel mit dem angegebenen Ort an.
-     */
     public static void neueSchachtelAnlegen(int nummerAufSchachtel, String ort, String tondateipfad) {
         Connection conn = getConnection();
         if (conn == null) return;
@@ -329,9 +345,6 @@ public class Datenbankmanager {
         }
     }
     
-    /**
-     * Setzt den Ort und den Dateipfad einer existierenden Schachtel, bei der der Ort bisher NULL war.
-     */
     public static void updateSchachtelOrt(int nummerAufSchachtel, String neuerOrt, String tondateipfad) {
         Connection conn = getConnection();
         if (conn == null) return;
@@ -351,14 +364,10 @@ public class Datenbankmanager {
         }
     }
 
-    /**
-     * Hängt neuen Inhalt an eine existierende Schachtel an.
-     */
     public static void inhaltZuSchachtelHinzufuegen(int nummerAufSchachtel, String neuerInhalt) {
         Connection conn = getConnection();
         if (conn == null) return;
 
-        // Bisherigen Inhalt holen
         String selectSQL = "SELECT Inhalt FROM schachtel WHERE NummerAufDerSchachtel = ?";
         String bisherigerInhalt = null;
         try (PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
