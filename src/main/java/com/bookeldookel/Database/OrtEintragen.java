@@ -147,7 +147,7 @@ public class OrtEintragen {
         System.out.println("  Ort: " + vorgeschlagenerOrt);
         System.out.println("────────────────────────────────────────────────────────────────");
         System.out.println("  [Enter] = Bestaetigen");
-        System.out.println("  Korrektur eingeben: z.B. \"1012 Sicherungskasten\"");
+        System.out.println("  Korrektur eingeben: \"[Nummer] [Bezeichnung]\"");
         System.out.println("  \"abbruch\" = Vorgang abbrechen");
         System.out.println("════════════════════════════════════════════════════════════════");
         System.out.print("Ihre Eingabe: ");
