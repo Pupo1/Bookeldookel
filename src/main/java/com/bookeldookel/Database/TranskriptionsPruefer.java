@@ -233,7 +233,7 @@ public class TranskriptionsPruefer {
      * Bei Namenskonflikten wird die Datei umbenannt.
      */
     private static void archiviereWavDateien(Path diyrecordDir) {
-        Path archivDir = Paths.get("src", "main", "resources", "archiv");
+        Path archivDir = Paths.get("src", "main", "resources", "archivArtikel"); // Geändert für Artikel
         
         // Archiv-Ordner erstellen, falls nicht vorhanden
         try {

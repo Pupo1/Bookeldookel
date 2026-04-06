@@ -1,16 +1,6 @@
 package com.bookeldookel.Database;
 
-import com.google.cloud.texttospeech.v1.AudioConfig;
-import com.google.cloud.texttospeech.v1.AudioEncoding;
-import com.google.cloud.texttospeech.v1.SynthesisInput;
-import com.google.cloud.texttospeech.v1.TextToSpeechClient;
-import com.google.cloud.texttospeech.v1.SynthesizeSpeechResponse;
-import com.google.cloud.texttospeech.v1.VoiceSelectionParams;
-import com.google.protobuf.ByteString;
-
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.file.FileSystems;
 import java.nio.file.FileStore;
 import java.nio.file.Files;
@@ -22,19 +12,25 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class AudioGenerator {
 
     /**
-     * Sammelt alle geprüften und genehmigten Einträge aus tonaufnahmen, generiert daraus
-     * Text-to-Speech Audios (.wav), speichert sie im Ordner resources/tour und überträgt
-     * sie anschließend auf den Bookii-Stift, falls dieser noch/wieder angeschlossen ist.
+     * Sammelt alle geprüften und genehmigten Einträge aus tonaufnahmen, hängt an die 
+     * ursprüngliche .wav-Datei des Artikels die Audioaufnahme der Schachtelregistrierung an,
+     * speichert sie im Ordner resources/tour und überträgt sie anschließend auf den Bookii-Stift, 
+     * falls dieser noch/wieder angeschlossen ist.
      */
     public static void generiereUndUebertrageAudios() {
-        System.out.println("\n=== Starte Audio-Generierung (AudioGenerator) ===");
+        System.out.println("\n=== Starte Audio-Kombination (AudioGenerator) ===");
 
+        // Pfade getrennt nach Artikel und Ort
+        Path archivArtikelDir = Paths.get("src", "main", "resources", "archivArtikel");
+        Path archivOrteDir = Paths.get("src", "main", "resources", "archivOrte");
         Path tourDir = Paths.get("src", "main", "resources", "tour");
+
         try {
             if (!Files.exists(tourDir)) {
                 Files.createDirectories(tourDir);
@@ -50,9 +46,11 @@ public class AudioGenerator {
             return;
         }
 
-        // Wir holen alle Einträge, die eine Zuordnung haben und geprüft wurden.
-        String selectSQL = "SELECT aufnahme_id, pfad, inhalt, zuordnung FROM tonaufnahmen " +
-                           "WHERE zuordnung_check = 1 AND zuordnung IS NOT NULL";
+        // Wir holen alle Einträge aus tonaufnahmen, die erfolgreich einer Schachtel zugeordnet wurden
+        // Hierbei ist "zuordnung" der Ort / die Bezeichnung der Schachtel.
+        String selectSQL = "SELECT t.aufnahme_id, t.pfad as artikel_pfad, t.zuordnung " +
+                           "FROM tonaufnahmen t " +
+                           "WHERE t.zuordnung_check = 1 AND t.zuordnung IS NOT NULL";
 
         List<Path> erzeugteDateien = new ArrayList<>();
 
@@ -64,30 +62,52 @@ public class AudioGenerator {
             while (rs.next()) {
                 eintraegeGefunden = true;
                 int id = rs.getInt("aufnahme_id");
-                String pfadStr = rs.getString("pfad");
-                String inhalt = rs.getString("inhalt");
+                String artikelPfadStr = rs.getString("artikel_pfad");
                 String zuordnung = rs.getString("zuordnung");
 
-                // Text zusammenbauen: Artikelname (Inhalt) + Zuordnung
-                String zuSprechenderText = inhalt + ". " + zuordnung;
-                System.out.println("\nGeneriere Audio für: \"" + zuSprechenderText + "\"");
-
-                // Dateinamen aus dem ursprünglichen Pfad extrahieren
-                String dateiName = extractFileName(pfadStr);
-                if (dateiName == null || dateiName.isEmpty()) {
-                    dateiName = "aufnahme_" + id + ".wav";
+                // Wir extrahieren den reinen Dateinamen des Artikels, um ihn im archivArtikel zu suchen
+                String dateiNameArtikel = extractFileName(artikelPfadStr);
+                if (dateiNameArtikel == null || dateiNameArtikel.isEmpty()) {
+                    System.err.println("Konnte Dateinamen für Artikel ID " + id + " nicht extrahieren.");
+                    continue;
                 }
 
-                Path zielDateiTour = tourDir.resolve(dateiName);
+                // Jetzt suchen wir nach der passenden Schachtel-Tondatei.
+                String schachtelAudioPfad = findeSchachtelAudioPfad(conn, zuordnung);
+                
+                if (schachtelAudioPfad == null) {
+                    System.err.println("WARNUNG: Keine Tondatei für Schachtel '" + zuordnung + "' gefunden. Überspringe Zusammenführung für " + dateiNameArtikel);
+                    continue;
+                }
+                
+                String dateiNameSchachtel = extractFileName(schachtelAudioPfad);
 
-                // Google Text-to-Speech aufrufen
-                boolean erfolg = generiereWavMitGoogle(zuSprechenderText, zielDateiTour);
+                Path artikelWav = archivArtikelDir.resolve(dateiNameArtikel);
+                Path schachtelWav = archivOrteDir.resolve(dateiNameSchachtel);
+                
+                // Wir speichern die kombinierte Datei im tour Ordner mit dem Originalnamen der Artikel-Wav, 
+                // da sie in Bookiiconnection / Bookii Stift exakt so (unter dieser OID) erwartet wird.
+                Path zielDateiTour = tourDir.resolve(dateiNameArtikel);
+
+                if (!Files.exists(artikelWav)) {
+                    System.err.println("Artikel-Audio nicht gefunden im Archiv: " + artikelWav);
+                    continue;
+                }
+                if (!Files.exists(schachtelWav)) {
+                    System.err.println("Schachtel-Audio nicht gefunden im Archiv: " + schachtelWav);
+                    continue;
+                }
+
+                System.out.println("Kombiniere: " + dateiNameArtikel + " + " + dateiNameSchachtel);
+
+                // Einfaches binäres Aneinanderhängen von wav-Dateien 
+                boolean erfolg = kombiniereWav(artikelWav, schachtelWav, zielDateiTour);
 
                 if (erfolg) {
                     erzeugteDateien.add(zielDateiTour);
                     System.out.println("Audio erfolgreich gespeichert unter: " + zielDateiTour);
                 } else {
-                    System.err.println("Audio-Generierung fehlgeschlagen für ID " + id);
+                    System.err.println("Audio-Kombination fehlgeschlagen für ID " + id);
                 }
             }
 
@@ -104,20 +124,74 @@ public class AudioGenerator {
             uebertrageAufStift(erzeugteDateien);
         }
 
-        System.out.println("\n=== Audio-Generierung beendet ===");
+        System.out.println("\n=== Audio-Kombination beendet ===");
     }
 
     /**
-     * Extrahiert den Dateinamen aus einem absoluten oder relativen Pfad.
+     * Sucht in der Tabelle 'schachtel' nach dem Tondateipfad, der zu der Zuordnung (Ort oder Inhalt) passt.
      */
-    private static String extractFileName(String pfad) {
-        if (pfad == null) return null;
-        // Für Windows und Linux Backslash oder Forwardslash behandeln
-        int lastSlash = Math.max(pfad.lastIndexOf('/'), pfad.lastIndexOf('\\'));
-        if (lastSlash >= 0 && lastSlash < pfad.length() - 1) {
-            return pfad.substring(lastSlash + 1);
+    private static String findeSchachtelAudioPfad(Connection conn, String zuordnung) {
+        String selectSQL = "SELECT Tondateipfad FROM schachtel WHERE Ort = ? OR Inhalt = ? LIMIT 1";
+        try (PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
+            pstmt.setString(1, zuordnung);
+            pstmt.setString(2, zuordnung);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("Tondateipfad");
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Suchen des Schachtel-Audiopfads: " + e.getMessage());
         }
-        return pfad;
+        return null;
+    }
+
+    /**
+     * Kombiniert zwei .wav Dateien. 
+     * Dies hängt einfach die Payload-Daten der zweiten Datei an die erste an und passt den Header an.
+     * Setzt voraus, dass beide Dateien dasselbe Audio-Format haben.
+     */
+    private static boolean kombiniereWav(Path wav1, Path wav2, Path ziel) {
+        try {
+            byte[] file1Bytes = Files.readAllBytes(wav1);
+            byte[] file2Bytes = Files.readAllBytes(wav2);
+            
+            // Sehr rudimentärer WAV-Concat:
+            // WAV Header ist normalerweise 44 Bytes groß.
+            if (file1Bytes.length < 44 || file2Bytes.length < 44) {
+                System.err.println("Eine der WAV-Dateien ist zu klein (kein gültiger Header).");
+                return false;
+            }
+
+            int payload2Length = file2Bytes.length - 44;
+            int combinedLength = file1Bytes.length + payload2Length;
+
+            byte[] combinedBytes = Arrays.copyOf(file1Bytes, combinedLength);
+            System.arraycopy(file2Bytes, 44, combinedBytes, file1Bytes.length, payload2Length);
+
+            // Datei-Größen im Header anpassen (Position 4 und 40)
+            int dataSize = combinedLength - 44;
+            int fileSize = combinedLength - 8;
+
+            // fileSize in Bytes 4-7 (Little Endian)
+            combinedBytes[4] = (byte) (fileSize & 0xFF);
+            combinedBytes[5] = (byte) ((fileSize >> 8) & 0xFF);
+            combinedBytes[6] = (byte) ((fileSize >> 16) & 0xFF);
+            combinedBytes[7] = (byte) ((fileSize >> 24) & 0xFF);
+
+            // dataSize in Bytes 40-43 (Little Endian)
+            combinedBytes[40] = (byte) (dataSize & 0xFF);
+            combinedBytes[41] = (byte) ((dataSize >> 8) & 0xFF);
+            combinedBytes[42] = (byte) ((dataSize >> 16) & 0xFF);
+            combinedBytes[43] = (byte) ((dataSize >> 24) & 0xFF);
+
+            Files.write(ziel, combinedBytes);
+            return true;
+
+        } catch (IOException e) {
+            System.err.println("Fehler beim Kombinieren der WAV-Dateien: " + e.getMessage());
+            return false;
+        }
     }
 
     /**
@@ -168,45 +242,19 @@ public class AudioGenerator {
             }
         }
 
-        System.out.println("Alle generierten Dateien wurden auf den Stift übertragen.");
+        System.out.println("Alle kombinierten Dateien wurden auf den Stift übertragen.");
     }
 
     /**
-     * Nutzt die Google Cloud Text-to-Speech API, um Text in eine .wav Datei umzuwandeln.
-     * Voraussetzung: Die Umgebungsvariable GOOGLE_APPLICATION_CREDENTIALS muss gesetzt sein,
-     * da die TTS API standardmäßig Service Accounts erwartet.
+     * Extrahiert den Dateinamen aus einem absoluten oder relativen Pfad.
      */
-    private static boolean generiereWavMitGoogle(String text, Path zielPfad) {
-        try (TextToSpeechClient textToSpeechClient = TextToSpeechClient.create()) {
-            
-            SynthesisInput input = SynthesisInput.newBuilder().setText(text).build();
-
-            // Stimme auswählen (z.B. Deutsch, weiblich/männlich, Wavenet)
-            VoiceSelectionParams voice = VoiceSelectionParams.newBuilder()
-                    .setLanguageCode("de-DE")
-                    .setName("de-DE-Wavenet-C") // Eine hochwertige deutsche Stimme
-                    .build();
-
-            // Audio-Format auf LINEAR16 (.wav) setzen
-            AudioConfig audioConfig = AudioConfig.newBuilder()
-                    .setAudioEncoding(AudioEncoding.LINEAR16)
-                    // Optional: Sample Rate anpassen, falls Bookii ein bestimmtes Format erwartet (z.B. 44100 oder 22050)
-                    // .setSampleRateHertz(44100) 
-                    .build();
-
-            SynthesizeSpeechResponse response = textToSpeechClient.synthesizeSpeech(input, voice, audioConfig);
-            ByteString audioContents = response.getAudioContent();
-
-            try (OutputStream out = new FileOutputStream(zielPfad.toFile())) {
-                out.write(audioContents.toByteArray());
-                return true;
-            }
-
-        } catch (Exception e) {
-            System.err.println("Fehler bei der Google Text-to-Speech Anfrage: " + e.getMessage());
-            System.err.println("HINWEIS: Stelle sicher, dass die Dependency 'com.google.cloud:google-cloud-texttospeech' in build.gradle.kts eingetragen ist");
-            System.err.println("         und GOOGLE_APPLICATION_CREDENTIALS auf ein valides Service Account JSON verweist.");
-            return false;
+    private static String extractFileName(String pfad) {
+        if (pfad == null) return null;
+        // Für Windows und Linux Backslash oder Forwardslash behandeln
+        int lastSlash = Math.max(pfad.lastIndexOf('/'), pfad.lastIndexOf('\\'));
+        if (lastSlash >= 0 && lastSlash < pfad.length() - 1) {
+            return pfad.substring(lastSlash + 1);
         }
+        return pfad;
     }
 }

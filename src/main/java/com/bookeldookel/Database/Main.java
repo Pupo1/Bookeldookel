@@ -29,7 +29,7 @@ public class Main {
         // 7. Orte genehmigen
         OrteGenehmigen.pruefeOrte();
 
-        // 8. Audios generieren und auf den Stift übertragen
+        // 8. Audios kombinieren und auf den Stift übertragen (Neu: ohne Text-to-Speech)
         AudioGenerator.generiereUndUebertrageAudios();
         
         // 9. Datenbankverbindung am Ende schließen

@@ -31,7 +31,7 @@ public class EinmaligerOrtEintrag {
         System.out.println("\n=== Starte Verarbeitung einer einzelnen .wav-Datei aus dem mp3-Ordner (Testklasse) ===");
 
         Path mp3Dir = Paths.get("src", "main", "resources", "mp3");
-        Path archivDir = Paths.get("src", "main", "resources", "archiv");
+        Path archivDir = Paths.get("src", "main", "resources", "archivOrte");
 
         if (!Files.exists(mp3Dir) || !Files.isDirectory(mp3Dir)) {
             System.out.println("Der Ordner 'mp3' existiert nicht. Abbruch.");
