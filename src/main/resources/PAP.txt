@@ -1,0 +1,38 @@
+@startuml
+!theme plain
+title Programmablaufplan: Package Database
+
+start
+
+:<b>Transkript.initDatabase()</b>
+Prüft und erstellt Datenbanktabellen
+(tonaufnahmen, artikel, schachtel);
+
+:<b>Bookiiconnection.checkAndTransfer()</b>
+Wartet auf Bookii-Stift und kopiert
+.wav-Dateien in <i>resources/diyrecord</i>;
+
+:<b>Transkript.transkribiereVerzeichnis()</b>
+Transkribiert neue .wav-Dateien aus <i>diyrecord</i>
+(Gemini API) und speichert Text in DB;
+
+:<b>TranskriptionsPruefer.pruefeTranskriptionen()</b>
+Benutzer prüft/korrigiert Transkriptionen;
+
+:<b>WohinDamit.ermittleZiel()</b>
+KI ordnet geprüfte Transkriptionen
+vorhandenen Artikeln/Schachteln zu;
+
+:<b>OrteGenehmigen.pruefeOrte()</b>
+Benutzer prüft und bestätigt die
+von der KI vorgeschlagenen Orte;
+
+:<b>OrtEintragen.verarbeiteMp3Ordner()</b>
+Verarbeitet .wav-Dateien in <i>resources/mp3</i> zur
+Registrierung neuer Schachteln/Inhalte;
+
+:<b>Datenbankmanager.schliesseVerbindung()</b>
+Schließt die DB-Verbindung;
+
+stop
+@enduml

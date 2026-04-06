@@ -16,7 +16,7 @@ import java.util.stream.Stream;
 public class Transkript {
 
     // Das Modell, das wir verwenden wollen
-    private static final String MODEL_NAME = "gemini-1.5-flash";
+    private static final String MODEL_NAME = "gemini-2.5-flash";
 
     /**
      * Stellt sicher, dass die Datenbank-Tabelle existiert.
