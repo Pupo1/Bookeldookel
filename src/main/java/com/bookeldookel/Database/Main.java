@@ -15,12 +15,9 @@ public class Main {
         Bookiiconnection.checkAndTransfer();
 
         // 3. Neue Logik: mp3-Ordner für Schachteln verarbeiten
-        // Setze fehlerAufgetreten ggf. auch hier, falls die Logik Fehler wirft. 
-        // Aktuell ignoriert die mp3-Ordner-Methode das globale Flag, aber wir lassen es so.
         OrtEintragen.verarbeiteMp3Ordner();
 
         // 4. Alle verschobenen Dateien aus diyrecord transkribieren und in die DB speichern
-        // Dies setzt fehlerAufgetreten auf true, falls die API streikt.
         Transkript.transkribiereVerzeichnis();
         
         // 5. Transkriptionen prüfen
@@ -31,8 +28,11 @@ public class Main {
         
         // 7. Orte genehmigen
         OrteGenehmigen.pruefeOrte();
+
+        // 8. Audios generieren und auf den Stift übertragen
+        AudioGenerator.generiereUndUebertrageAudios();
         
-        // 8. Datenbankverbindung am Ende schließen
+        // 9. Datenbankverbindung am Ende schließen
         Datenbankmanager.schliesseVerbindung();
     }
 }
