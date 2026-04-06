@@ -107,6 +107,15 @@ public class Datenbankmanager {
                     System.out.println("Spalte 'zuordnung_check' erfolgreich hinzugefügt.");
                 }
             }
+            
+            // Prüfen auf Spalte 'schachtel_id' in tonaufnahmen
+            try (ResultSet rs = dbm.getColumns(null, null, "tonaufnahmen", "schachtel_id")) {
+                if (!rs.next()) {
+                    System.out.println("Spalte 'schachtel_id' fehlt in 'tonaufnahmen', wird hinzugefügt...");
+                    stmt.execute("ALTER TABLE tonaufnahmen ADD COLUMN schachtel_id INT DEFAULT NULL");
+                    System.out.println("Spalte 'schachtel_id' erfolgreich hinzugefügt.");
+                }
+            }
 
             // Prüfen auf Spalte 'Ort' in 'schachtel' (nur falls noch nicht durch CREATE TABLE oben abgedeckt in Altsystemen)
             try (ResultSet rs = dbm.getColumns(null, null, "schachtel", "Ort")) {
@@ -256,6 +265,47 @@ public class Datenbankmanager {
         return null; // Kein passender Inhalt gefunden
     }
 
+    public static Integer getSchachtelIdByInhalt(String inhalt) {
+        Connection conn = getConnection();
+        if (conn == null) return null;
+
+        String selectSQL = "SELECT schachtel_id FROM schachtel WHERE Inhalt = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
+            pstmt.setString(1, inhalt);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return rs.getInt("schachtel_id");
+            }
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Abrufen der schachtel_id über den Inhalt: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public static Integer getSchachtelIdByArtikelBezeichnung(String bezeichnung) {
+        Connection conn = getConnection();
+        if (conn == null) return null;
+
+        String selectSQL = "SELECT schachtel_id FROM artikel WHERE bezeichnung = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
+            pstmt.setString(1, bezeichnung);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                int schachtelId = rs.getInt("schachtel_id");
+                // Da in der DB NULL als 0 zurückgegeben werden kann von getInt(), prüfen wir auf wasNull()
+                if (rs.wasNull()) {
+                    return null;
+                }
+                return schachtelId;
+            }
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Abrufen der schachtel_id über die Artikelbezeichnung: " + e.getMessage());
+        }
+        return null;
+    }
+
     public static Tonaufnahme getErsteGepruefteTranskription() {
         Connection conn = getConnection();
         if (conn == null) return null;
@@ -289,7 +339,7 @@ public class Datenbankmanager {
         return list;
     }
 
-    public static void speichereZuordnung(int aufnahmeId, String zuordnung) {
+    public static void speichereZuordnung(int aufnahmeId, String zuordnung, Integer schachtelId) {
         Connection conn = getConnection();
         if (conn == null) return;
 
@@ -297,12 +347,17 @@ public class Datenbankmanager {
             zuordnung = zuordnung.substring(0, 255);
         }
 
-        String updateSQL = "UPDATE tonaufnahmen SET zuordnung = ?, uebertragen = 1 WHERE aufnahme_id = ?";
+        String updateSQL = "UPDATE tonaufnahmen SET zuordnung = ?, schachtel_id = ?, uebertragen = 1 WHERE aufnahme_id = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
             pstmt.setString(1, zuordnung);
-            pstmt.setInt(2, aufnahmeId);
+            if (schachtelId != null) {
+                pstmt.setInt(2, schachtelId);
+            } else {
+                pstmt.setNull(2, java.sql.Types.INTEGER);
+            }
+            pstmt.setInt(3, aufnahmeId);
             pstmt.executeUpdate();
-            System.out.println("Zuordnung '" + zuordnung + "' erfolgreich gespeichert.");
+            System.out.println("Zuordnung '" + zuordnung + "' (Schachtel-ID: " + schachtelId + ") erfolgreich gespeichert.");
         } catch (SQLException e) {
             System.err.println("Fehler beim Speichern der Zuordnung in Datenbank: " + e.getMessage());
         }

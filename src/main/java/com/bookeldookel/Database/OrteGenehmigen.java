@@ -29,7 +29,8 @@ public class OrteGenehmigen {
             System.out.println("Bedienung:");
             System.out.println("- [Enter] drücken, um den zugeordneten Ort zu BESTÄTIGEN.");
             System.out.println("- 'x' oder 'X' eingeben, um den Eintrag UNVERÄNDERT zu lassen (wird übersprungen).");
-            System.out.println("- 'quit' oder 'exit' eingeben, um die Prüfung vorzeitig ABZUBRECHEN.\n");
+            System.out.println("- 'quit' oder 'exit' eingeben, um die Prüfung vorzeitig ABZUBRECHEN.");
+            System.out.println("- Eine Zahl gefolgt von Text eingeben (z.B. '1021 Silikon') um die Schachtel-ID und Zuordnung direkt zu setzen.\n");
 
             while (rs.next()) {
                 eintraegeGefunden = true;
@@ -55,9 +56,32 @@ public class OrteGenehmigen {
                     markiereOrtAlsGeprueft(conn, id);
                     System.out.println("-> Ort BESTÄTIGT.");
                 } else {
-                    // Bei jeder anderen Eingabe gehen wir momentan davon aus, dass es übersprungen wird
-                    // Da die Anforderung nichts über die Korrektur des Ortes durch Texteingabe sagt.
-                    System.out.println("-> Ungültige Eingabe. Eintrag wird ÜBERSPRUNGEN.");
+                    // Prüfen ob die Eingabe mit einer Nummer beginnt (z.B. "1021 Silikon")
+                    String trimmedInput = input.trim();
+                    if (trimmedInput.length() > 0 && Character.isDigit(trimmedInput.charAt(0))) {
+                        // Finde die Stelle wo die Zahl endet (erster Nicht-Ziffer-Charakter)
+                        int i = 0;
+                        while (i < trimmedInput.length() && Character.isDigit(trimmedInput.charAt(i))) {
+                            i++;
+                        }
+                        
+                        // Extrahiere die Nummer und den Rest
+                        String nummerStr = trimmedInput.substring(0, i);
+                        String restText = trimmedInput.substring(i).trim();
+                        
+                        try {
+                            int schachtelId = Integer.parseInt(nummerStr);
+                            // Update database: schachtel_id and zuordnung
+                            aktualisiereOrtMitSchachtelId(conn, id, schachtelId, restText);
+                            System.out.println("-> Ort gespeichert: schachtel_id=" + schachtelId + ", zuordnung='" + restText + "'");
+                        } catch (NumberFormatException e) {
+                            System.out.println("-> Ungültige Zahl. Eintrag wird ÜBERSPRUNGEN.");
+                        }
+                    } else {
+                        // Bei jeder anderen Eingabe gehen wir momentan davon aus, dass es übersprungen wird
+                        // Da die Anforderung nichts über die Korrektur des Ortes durch Texteingabe sagt.
+                        System.out.println("-> Ungültige Eingabe. Eintrag wird ÜBERSPRUNGEN.");
+                    }
                 }
             }
 
@@ -79,6 +103,18 @@ public class OrteGenehmigen {
             pstmt.executeUpdate();
         } catch (SQLException e) {
             System.err.println("Fehler beim Aktualisieren der Ortsbestätigung für ID " + id + ": " + e.getMessage());
+        }
+    }
+
+    private static void aktualisiereOrtMitSchachtelId(Connection conn, int id, int schachtelId, String zuordnung) {
+        String updateSQL = "UPDATE tonaufnahmen SET schachtel_id = ?, zuordnung = ?, zuordnung_check = 1 WHERE aufnahme_id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+            pstmt.setInt(1, schachtelId);
+            pstmt.setString(2, zuordnung);
+            pstmt.setInt(3, id);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Aktualisieren der Schachtelzuordnung für ID " + id + ": " + e.getMessage());
         }
     }
 }

@@ -85,7 +85,8 @@ public class WohinDamit {
                             String zuordnung = kiAntwort.trim();
                             if (!zuordnung.equalsIgnoreCase("NEIN")) {
                                 System.out.println("-> KI Ergebnis (Schachtel direkt): " + zuordnung);
-                                Datenbankmanager.speichereZuordnung(aufnahme.id, zuordnung);
+                                Integer schachtelId = Datenbankmanager.getSchachtelIdByInhalt(zuordnung);
+                                Datenbankmanager.speichereZuordnung(aufnahme.id, zuordnung, schachtelId);
                                 inSchachtelGefunden = true;
                             } else {
                                 System.out.println("-> KI meint: Passt in keine bestehende Schachtel direkt.");
@@ -141,17 +142,18 @@ public class WohinDamit {
                                 // Wir haben einen ähnlichen Artikel gefunden! 
                                 // Jetzt holen wir den Schachtelinhalt, in dem dieser ähnliche Artikel liegt.
                                 String schachtelInhalt = Datenbankmanager.holeSchachtelInhaltZuArtikel(aehnlicherArtikel);
+                                Integer schachtelId = Datenbankmanager.getSchachtelIdByArtikelBezeichnung(aehnlicherArtikel);
                                 
                                 if (schachtelInhalt != null) {
                                     System.out.println("-> Zuzuordnender Schachtelinhalt: " + schachtelInhalt);
-                                    Datenbankmanager.speichereZuordnung(aufnahme.id, schachtelInhalt);
+                                    Datenbankmanager.speichereZuordnung(aufnahme.id, schachtelInhalt, schachtelId);
                                 } else {
                                     System.out.println("-> Der ähnliche Artikel liegt in keiner bekannten Schachtel (oder Inhalt ist leer).");
-                                    Datenbankmanager.speichereZuordnung(aufnahme.id, "NEUER_ARTIKEL");
+                                    Datenbankmanager.speichereZuordnung(aufnahme.id, "NEUER_ARTIKEL", null);
                                 }
                             } else {
                                 System.out.println("\n-> KI meint: Kein ähnlicher Artikel gefunden.");
-                                Datenbankmanager.speichereZuordnung(aufnahme.id, "NEUER_ARTIKEL");
+                                Datenbankmanager.speichereZuordnung(aufnahme.id, "NEUER_ARTIKEL", null);
                             }
                         }
                     } catch (Exception e) {
@@ -160,7 +162,7 @@ public class WohinDamit {
                 } else if (!inSchachtelGefunden) {
                     // Weder Schachtel noch Artikel Liste vorhanden/durchsuchbar
                     System.out.println("-> Keine Vergleichsdaten (Artikel) vorhanden.");
-                    Datenbankmanager.speichereZuordnung(aufnahme.id, "NEUER_ARTIKEL");
+                    Datenbankmanager.speichereZuordnung(aufnahme.id, "NEUER_ARTIKEL", null);
                 }
                 
                 // Wir haben die Funktionalität so belassen, dass wir auch in der Liste der Artikel schauen,
