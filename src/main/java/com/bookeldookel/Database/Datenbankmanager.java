@@ -306,6 +306,53 @@ public class Datenbankmanager {
         return null;
     }
 
+    /**
+     * Sucht alle Artikel, deren Bezeichnung einen bestimmten Suchbegriff enthält.
+     * @param suchbegriff Der Suchbegriff (case-insensitive)
+     * @return Liste von Objekten mit artikel_id und bezeichnung
+     */
+    public static List<Artikel> sucheArtikelMitAehnlicherBezeichnung(String suchbegriff) {
+        List<Artikel> result = new ArrayList<>();
+        Connection conn = getConnection();
+        if (conn == null) return result;
+
+        // Suche nach Artikeln, deren Bezeichnung den Suchbegriff enthält (case-insensitive)
+        String selectSQL = "SELECT artikel_id, bezeichnung, schachtel_id FROM artikel WHERE bezeichnung LIKE ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
+            pstmt.setString(1, "%" + suchbegriff + "%");
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                int artikelId = rs.getInt("artikel_id");
+                String bezeichnung = rs.getString("bezeichnung");
+                int schachtelId = rs.getInt("schachtel_id");
+                Integer schachtelIdNullable = rs.wasNull() ? null : schachtelId;
+                result.add(new Artikel(artikelId, bezeichnung, schachtelIdNullable));
+            }
+        } catch (SQLException e) {
+            System.err.println("Fehler bei der Suche nach ähnlichen Artikeln: " + e.getMessage());
+        }
+        return result;
+    }
+
+    // Hilfsklasse für Artikel-Suchergebnisse
+    public static class Artikel {
+        public final int artikelId;
+        public final String bezeichnung;
+        public final Integer schachtelId;
+
+        public Artikel(int artikelId, String bezeichnung, Integer schachtelId) {
+            this.artikelId = artikelId;
+            this.bezeichnung = bezeichnung;
+            this.schachtelId = schachtelId;
+        }
+
+        @Override
+        public String toString() {
+            return bezeichnung + " (Schachtel-ID: " + (schachtelId != null ? schachtelId : "keine") + ")";
+        }
+    }
+
     public static Tonaufnahme getErsteGepruefteTranskription() {
         Connection conn = getConnection();
         if (conn == null) return null;

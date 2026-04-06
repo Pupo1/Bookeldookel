@@ -8,6 +8,7 @@ import com.google.genai.types.GenerateContentConfig;
 
 import java.util.List;
 import java.util.Arrays;
+import java.util.Scanner;
 
 public class WohinDamit {
     
@@ -139,17 +140,43 @@ public class WohinDamit {
                             if (!aehnlicherArtikel.equalsIgnoreCase("NEIN")) {
                                 System.out.println("\n-> KI meint, der ähnlichste Artikel ist: " + aehnlicherArtikel);
                                 
-                                // Wir haben einen ähnlichen Artikel gefunden! 
-                                // Jetzt holen wir den Schachtelinhalt, in dem dieser ähnliche Artikel liegt.
-                                String schachtelInhalt = Datenbankmanager.holeSchachtelInhaltZuArtikel(aehnlicherArtikel);
-                                Integer schachtelId = Datenbankmanager.getSchachtelIdByArtikelBezeichnung(aehnlicherArtikel);
+                                // Neue Logik: Suche alle Artikel, die diese Zeichenkette enthalten
+                                List<Datenbankmanager.Artikel> gefundeneArtikel = Datenbankmanager.sucheArtikelMitAehnlicherBezeichnung(aehnlicherArtikel);
                                 
-                                if (schachtelInhalt != null) {
-                                    System.out.println("-> Zuzuordnender Schachtelinhalt: " + schachtelInhalt);
-                                    Datenbankmanager.speichereZuordnung(aufnahme.id, schachtelInhalt, schachtelId);
-                                } else {
-                                    System.out.println("-> Der ähnliche Artikel liegt in keiner bekannten Schachtel (oder Inhalt ist leer).");
+                                if (gefundeneArtikel.isEmpty()) {
+                                    System.out.println("-> Keine passenden Artikel in der Datenbank gefunden.");
                                     Datenbankmanager.speichereZuordnung(aufnahme.id, "NEUER_ARTIKEL", null);
+                                } else if (gefundeneArtikel.size() == 1) {
+                                    // Genau ein Treffer -> automatisch auswählen
+                                    Datenbankmanager.Artikel ausgewaehlterArtikel = gefundeneArtikel.get(0);
+                                    System.out.println("-> Ein passender Artikel gefunden: " + ausgewaehlterArtikel.bezeichnung);
+                                    System.out.println("-> Automatisch zugeordnet zu Schachtel-ID: " + ausgewaehlterArtikel.schachtelId);
+                                    Datenbankmanager.speichereZuordnung(aufnahme.id, ausgewaehlterArtikel.bezeichnung, ausgewaehlterArtikel.schachtelId);
+                                } else {
+                                    // Mehrere Treffer -> Auswahlmenu
+                                    System.out.println("-> Mehrere passende Artikel gefunden. Bitte auswählen:");
+                                    for (int j = 0; j < gefundeneArtikel.size(); j++) {
+                                        Datenbankmanager.Artikel a = gefundeneArtikel.get(j);
+                                        System.out.println("  [" + j + "] " + a.bezeichnung + " (Schachtel-ID: " + (a.schachtelId != null ? a.schachtelId : "keine") + ")");
+                                    }
+                                    System.out.print("Auswahl (Nummer eingeben): ");
+                                    Scanner auswahlScanner = new Scanner(System.in);
+                                    String auswahl = auswahlScanner.nextLine().trim();
+                                    try {
+                                        int index = Integer.parseInt(auswahl);
+                                        if (index >= 0 && index < gefundeneArtikel.size()) {
+                                            Datenbankmanager.Artikel ausgewaehlterArtikel = gefundeneArtikel.get(index);
+                                            System.out.println("-> Ausgewählt: " + ausgewaehlterArtikel.bezeichnung);
+                                            System.out.println("-> Zugeordnet zu Schachtel-ID: " + ausgewaehlterArtikel.schachtelId);
+                                            Datenbankmanager.speichereZuordnung(aufnahme.id, ausgewaehlterArtikel.bezeichnung, ausgewaehlterArtikel.schachtelId);
+                                        } else {
+                                            System.out.println("-> Ungültige Auswahl. Eintrag wird übersprungen.");
+                                            Datenbankmanager.speichereZuordnung(aufnahme.id, "NEUER_ARTIKEL", null);
+                                        }
+                                    } catch (NumberFormatException e) {
+                                        System.out.println("-> Ungültige Eingabe. Eintrag wird übersprungen.");
+                                        Datenbankmanager.speichereZuordnung(aufnahme.id, "NEUER_ARTIKEL", null);
+                                    }
                                 }
                             } else {
                                 System.out.println("\n-> KI meint: Kein ähnlicher Artikel gefunden.");

@@ -17,7 +17,7 @@ public class OrteGenehmigen {
 
         // Suche nach allen Einträgen, bei denen zuordnung befüllt ist, aber zuordnung_check noch nicht 1 ist
         String selectSQL = "SELECT aufnahme_id, inhalt, zuordnung FROM tonaufnahmen " +
-                           "WHERE zuordnung IS NOT NULL AND (zuordnung_check IS NULL OR zuordnung_check != 1)";
+                           "WHERE (zuordnung_check IS NULL OR zuordnung_check != 1)";
         
         try (PreparedStatement pstmt = conn.prepareStatement(selectSQL);
              ResultSet rs = pstmt.executeQuery()) {
